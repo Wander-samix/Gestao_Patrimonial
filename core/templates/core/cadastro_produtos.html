@@ -1,0 +1,51 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Cadastro de Produtos{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Cadastro de Produtos</h2>
+    <form method="POST">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label for="codigo_barras" class="form-label">Código de Barras</label>
+            <input type="text" name="codigo_barras" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label for="descricao" class="form-label">Descrição</label>
+            <input type="text" name="descricao" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label for="fornecedor" class="form-label">Fornecedor</label>
+            <select name="fornecedor" class="form-control" required>
+                {% for fornecedor in fornecedores %}
+                <option value="{{ fornecedor.id }}">{{ fornecedor.nome }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="mb-3">
+            <label for="lote" class="form-label">Lote</label>
+            <input type="text" name="lote" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label for="validade" class="form-label">Validade</label>
+            <input type="date" name="validade" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label for="quantidade" class="form-label">Quantidade</label>
+            <input type="number" name="quantidade" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label for="preco_unitario" class="form-label">Preço Unitário</label>
+            <input type="text" name="preco_unitario" class="form-control" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Cadastrar</button>
+    </form>
+</div>
+{% endblock %}
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+    {% endfor %}
+{% endif %}

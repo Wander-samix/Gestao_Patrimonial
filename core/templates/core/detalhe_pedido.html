@@ -1,0 +1,75 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Detalhe do Pedido {{ pedido.codigo }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>Pedido {{ pedido.codigo }}</h3>
+    {% if user.papel == 'admin' %}
+      <a href="{% url 'deletar_pedido' pedido.id %}"
+         class="btn btn-outline-danger"
+         onclick="return confirm('Excluir pedido {{ pedido.codigo }}?');">
+        <i class="bi bi-trash"></i> Deletar
+      </a>
+    {% endif %}
+  </div>
+
+  <p><strong>Status:</strong> {{ pedido.get_status_display }}</p>
+
+  <form method="post">
+    {% csrf_token %}
+    <table class="table table-bordered">
+      <thead>
+        <tr>
+          <th>Produto</th>
+          <th>Quantidade Solicitada</th>
+          <th>Quantidade Liberada</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in pedido.itens.all %}
+          <tr>
+            <td>{{ item.produto.descricao }}</td>
+            <td>{{ item.quantidade }}</td>
+            <td>
+              {% if eh_admin_tecnico and pedido.status == 'aprovado' %}
+                <input type="number"
+                       name="liberado_{{ item.id }}"
+                       value="{{ item.liberado|default:item.quantidade }}"
+                       min="0"
+                       max="{{ item.quantidade }}"
+                       class="form-control form-control-sm">
+              {% else %}
+                {{ item.liberado|default:"–" }}
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% if eh_admin_tecnico and pedido.status == 'aprovado' %}
+      <button type="submit" name="separar" class="btn btn-warning">
+        Confirmar Liberação
+      </button>
+    {% endif %}
+  </form>
+
+  {# Substituído “in [...]” por comparação explícita para não gerar TemplateSyntaxError #}
+  {% if pedido.status == 'separado' or pedido.status == 'entregue' %}
+    <div class="mt-4">
+      <h5>Resultado da Liberação</h5>
+      <ul>
+        {% for item in pedido.itens.all %}
+          <li>
+            {{ item.produto.descricao }}:
+            solicitado {{ item.quantidade }},
+            liberado {{ item.liberado|default:"0" }}
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

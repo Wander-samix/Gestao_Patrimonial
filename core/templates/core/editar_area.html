@@ -1,0 +1,16 @@
+{% extends "core/base.html" %}
+{% block title %}Editar Área{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width:600px;">
+  <h2 class="mb-3">Editar Área: {{ area.nome }}</h2>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-primary">Salvar</button>
+      <a href="{% url 'configuracoes' %}" class="btn btn-outline-secondary">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

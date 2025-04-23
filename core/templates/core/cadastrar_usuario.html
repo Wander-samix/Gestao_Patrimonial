@@ -1,0 +1,52 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Cadastrar Usuário{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width: 600px;">
+    <h2 class="text-center mb-4">Cadastrar Novo Usuário</h2>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label for="username" class="form-label">Usuário</label>
+            <input type="text" class="form-control" name="username" id="username" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="matricula" class="form-label">Matrícula</label>
+            <input type="text" class="form-control" name="matricula" id="matricula" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="email" class="form-label">E-mail</label>
+            <input type="email" class="form-control" name="email" id="email" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="papel" class="form-label">Função</label>
+            <select name="papel" id="papel" class="form-select" required>
+                <option value="admin">Admin</option>
+                <option value="operador" selected>Operador</option>
+                <option value="tecnico">Técnico</option>
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label for="password" class="form-label">Senha</label>
+            <input type="password" class="form-control" name="password" id="password" required>
+        </div>
+
+        <div class="d-flex justify-content-between">
+            <a href="{% url 'lista_usuarios' %}" class="btn btn-secondary">Voltar</a>
+            <button type="submit" class="btn btn-primary">Cadastrar</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

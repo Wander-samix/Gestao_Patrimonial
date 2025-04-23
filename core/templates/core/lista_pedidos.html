@@ -1,0 +1,221 @@
+{% extends "core/base.html" %}
+{% load static i18n cache tz util saldo %}
+
+{% block title %}Lista de Pedidos{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2>Pedidos</h2>
+  <div>
+    <a href="{% url 'novo_pedido' %}" class="btn btn-primary me-2">+ Novo Pedido</a>
+    <a href="{% url 'exportar_pedidos_excel' %}?status={{ status_selecionado }}" class="btn btn-outline-success">Exportar Excel</a>
+  </div>
+</div>
+
+<form method="get" action="{% url 'lista_pedidos' %}" class="row g-2 mb-3">
+  <div class="col-auto">
+    <select name="status" class="form-select">
+      <option value="">Todos os Status</option>
+      {% for chave, label in STATUS_CHOICES %}
+        <option value="{{ chave }}" {% if status_selecionado == chave %}selected{% endif %}>
+          {{ label }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
+    <button type="submit" class="btn btn-outline-secondary">Filtrar</button>
+    <a href="{% url 'lista_pedidos' %}" class="btn btn-outline-secondary">Limpar</a>
+  </div>
+</form>
+
+<div class="table-responsive">
+  <table class="table table-bordered table-hover">
+    <thead class="table-dark text-center align-middle" style="font-weight: 400; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 0.9rem; color: white;">
+      <tr>
+        <th style="width:40px; color: white;">#</th>
+        <th>
+          <a href="?ordenar_por=codigo{% if status_selecionado %}&status={{ status_selecionado }}{% endif %}" style="color: white;">
+            Código
+          </a>
+        </th>
+        <th>
+          <a href="?ordenar_por=data_solicitacao{% if status_selecionado %}&status={{ status_selecionado }}{% endif %}" style="color: white;">
+            Data Solicitação
+          </a>
+        </th>
+      
+        </th>
+        <th>Solicitante</th>
+        <th>Necessário em</th>
+        <th>Status / Histórico</th>
+        <th style="width:260px;">Ações</th>
+      </tr>
+    </thead>
+    <tbody id="pedidosAccordion">
+      {% for pedido in pedidos %}
+        <tr>
+          <td class="text-center">{{ forloop.counter }}</td>
+          <td>{{ pedido.codigo }}</td>
+          <td>{{ pedido.data_solicitacao|date:"d/m/Y H:i" }}</td>
+          <td>
+            {{ pedido.usuario.username }}<br>
+            <small class="text-muted"><i class="bi bi-envelope"></i> {{ pedido.usuario.email }}</small>
+          </td>
+          <td class="text-center">{{ pedido.data_necessaria|default:"—"|date:"d/m/Y" }}</td>
+          <td>
+            {{ pedido.get_status_display }}
+            {% if pedido.aprovado_por %}
+              <br><small class="text-muted">Aprovado por {{ pedido.aprovado_por.username }} em {{ pedido.data_aprovacao|date:"d/m H:i" }}</small>
+            {% endif %}
+            {% if pedido.data_separacao %}
+              <br><small class="text-muted">Separado em {{ pedido.data_separacao|date:"d/m H:i" }}</small>
+            {% endif %}
+            {% if pedido.retirado_por %}
+              <br><small class="text-muted">Retirado por {{ pedido.retirado_por }} em {{ pedido.data_retirada|date:"d/m H:i" }}</small>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            <button class="btn btn-sm btn-outline-secondary me-1"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#collapse{{ pedido.id }}"
+                    data-bs-parent="#pedidosAccordion">
+              <i class="bi bi-chevron-down"></i>
+            </button>
+            {% if user.papel == 'admin' %}
+              <a href="{% url 'deletar_pedido' pedido.id %}"
+                 class="btn btn-sm btn-outline-danger me-1"
+                 onclick="return confirm('Excluir pedido {{ pedido.codigo }}?');">
+                <i class="bi bi-trash"></i>
+              </a>
+            {% endif %}
+            <form method="post"
+                  action="{% url 'detalhe_pedido' pedido.id %}#collapse{{ pedido.id }}"
+                  class="d-inline">
+              {% csrf_token %}
+              {% if pedido.status == 'aguardando_aprovacao' and user.papel == 'admin' %}
+                <button name="action" value="approve" class="btn btn-sm btn-success me-1">Aprovar</button>
+                <button name="action" value="reject" class="btn btn-sm btn-danger">Reprovar</button>
+              {% elif pedido.status == 'aprovado' and user.papel == 'admin' %}
+                <button name="action" value="separar" class="btn btn-sm btn-warning">Separar</button>
+              {% elif pedido.status == 'separado' and user.papel == 'admin' %}
+                <input type="hidden" name="retirado_por" id="retirado_por_{{ pedido.id }}">
+                <button type="button"
+                        class="btn btn-sm btn-primary"
+                        data-id="{{ pedido.id }}"
+                        onclick="retirar(this)">
+                  Retirar
+                </button>
+              {% endif %}
+            </form>
+          </td>
+        </tr>
+
+        <tr id="collapse{{ pedido.id }}" class="collapse bg-light" data-bs-parent="#pedidosAccordion">
+          <td colspan="7" class="p-0 px-3 py-2">
+            <table class="table mb-0">
+              <thead class="table-light text-center">
+                <tr>
+                  <th>Produto</th>
+                  <th class="text-center">Código de Barras</th>
+                  <th>Área</th>
+                  <th>Qtd Solicitada</th>
+                  <th>Qtd Liberada</th>
+                  <th>Estoque Disp. no Pedido</th>
+                  <th>Observação</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in pedido.itens.all %}
+                  {% with lib=item.liberado|default:item.quantidade %}
+                    <tr>
+                      <td>{{ item.produto.descricao }}</td>
+                      <td class="text-center">{{ item.produto.codigo_barras }}</td>
+                      <td class="text-center">{{ item.produto.area.nome|default:"—" }}</td>
+                      <td class="text-center">{{ item.quantidade }}</td>
+                      <td class="text-center">{{ lib }}</td>
+                      <td class="text-center">{{ item.estoque_no_pedido|default:"—" }}</td>
+                      <td class="text-center">{{ item.observacao|default:"—" }}</td>
+                    </tr>
+                  {% endwith %}
+                {% endfor %}
+
+                {% for subitem in pedido.subitens.all %}
+                  <tr class="table-secondary">
+                    <td>{{ subitem.produto.descricao }} <span class="text-muted">(subitem)</span></td>
+                    <td class="text-center">{{ subitem.produto.codigo_barras }}</td>
+                    <td class="text-center">{{ subitem.produto.area.nome|default:"—" }}</td>
+                    <td class="text-center">{{ subitem.quantidade }}</td>
+                    <td class="text-center">—</td>
+                    <td class="text-center">
+                      {{ subitem.estoque_no_pedido|default:"—" }}
+                      {% with minimo=subitem.produto.estoque_minimo %}
+                        {% if minimo and subitem.estoque_no_pedido < minimo %}
+                          <span class="badge bg-danger ms-1">
+                            {{ subitem.estoque_no_pedido|floatformat:0 }} / {{ minimo }}
+                          </span>
+                        {% endif %}
+                      {% endwith %}
+                    </td>
+                    <td class="text-center">—</td>
+                  </tr>
+                {% endfor %}
+
+                {% if pedido.itens.count == 0 and pedido.subitens.count == 0 %}
+                  <tr>
+                    <td colspan="7" class="text-center py-3">
+                      <em>Sem itens.</em>
+                    </td>
+                  </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="7" class="text-center">Nenhum pedido encontrado.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+function retirar(btn) {
+  const id   = btn.dataset.id;
+  const nome = prompt('Quem retirou o pedido?');
+  if (!nome) return;
+  document.getElementById('retirado_por_' + id).value = nome;
+  btn.name  = 'action';
+  btn.value = 'retirar';
+  btn.type  = 'submit';
+  btn.closest('form').submit();
+}
+</script>
+
+{% if pedidos.has_other_pages %}
+  <nav class="mt-4">
+    <ul class="pagination justify-content-center">
+      {% if pedidos.has_previous %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ pedidos.previous_page_number }}{% if status_selecionado %}&status={{ status_selecionado }}{% endif %}">Anterior</a>
+        </li>
+      {% endif %}
+
+      {% for num in pedidos.paginator.page_range %}
+        <li class="page-item {% if pedidos.number == num %}active{% endif %}">
+          <a class="page-link" href="?page={{ num }}{% if status_selecionado %}&status={{ status_selecionado }}{% endif %}">{{ num }}</a>
+        </li>
+      {% endfor %}
+
+      {% if pedidos.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ pedidos.next_page_number }}{% if status_selecionado %}&status={{ status_selecionado }}{% endif %}">Próxima</a>
+        </li>
+      {% endif %}
+    </ul>
+  </nav>
+{% endif %}
+{% endblock %}

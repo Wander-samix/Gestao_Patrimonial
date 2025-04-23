@@ -1,0 +1,153 @@
+{# core/templates/core/configuracoes.html #}
+{% extends "core/base.html" %}
+{% block title %}Configurações — Áreas & Sessões{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+
+  {# === Seção de Áreas === #}
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Áreas</h2>
+    <form method="post" class="d-flex gap-2">
+      {% csrf_token %}
+      {{ form_area.nome }}
+      <button type="submit" name="nova_area" class="btn btn-primary">
+        Adicionar
+      </button>
+    </form>
+  </div>
+
+  <table class="table table-hover mb-5">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Nome</th>
+        <th>Estoque Mínimo (%)</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for area in areas %}
+      <tr>
+        <td>{{ area.id }}</td>
+        <td>{{ area.nome }}</td>
+        <td>{{ area.minimo }}%</td>
+        <td>
+          <!-- editar estoque mínimo -->
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-secondary btn-edit-config"
+            data-id="{{ area.id }}"
+            data-minimo="{{ area.minimo }}"
+            data-bs-toggle="modal"
+            data-bs-target="#modalEditarConfig">
+            <i class="bi bi-pencil"></i>
+          </button>
+          <!-- excluir área -->
+          <a
+            href="{% url 'deletar_area' area.id %}"
+            class="btn btn-sm btn-outline-danger"
+            onclick="return confirm('Excluir área “{{ area.nome }}”?')">
+            <i class="bi bi-trash"></i>
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {# === Modal de edição de Estoque Mínimo === #}
+  <div class="modal fade" id="modalEditarConfig" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <form id="formEditarConfig" method="post">
+          {% csrf_token %}
+          <div class="modal-header">
+            <h5 class="modal-title">Editar Estoque Mínimo</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" name="area" id="editConfigArea">
+            <div class="mb-3">
+              <label for="editConfigMinimo" class="form-label">
+                Estoque mínimo (%)
+              </label>
+              <input
+                type="number"
+                id="editConfigMinimo"
+                name="estoque_minimo"
+                class="form-control"
+                min="0" max="100">
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-primary">Salvar</button>
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const urlEditarTpl = "{% url 'editar_configuracao' 0 %}";
+    document.querySelectorAll('.btn-edit-config').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id  = btn.dataset.id;
+        const min = btn.dataset.minimo;
+        document.getElementById('editConfigArea').value   = id;
+        document.getElementById('editConfigMinimo').value = min;
+        document.getElementById('formEditarConfig').action =
+          urlEditarTpl.replace('/0/', `/${id}/`);
+      });
+    });
+  </script>
+
+
+  {# === Seção de Sessões de Usuário === #}
+  <hr>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Sessões de Usuário</h2>
+    <!-- botão genérico sem menção a Excel -->
+    <a href="{% url 'exportar_sessoes_excel' %}" class="btn btn-success">
+      Exportar Sessões
+    </a>
+  </div>
+
+  <div class="table-responsive mb-5">
+    <table class="table table-striped table-hover align-middle">
+      <thead class="table-dark">
+        <tr>
+          <th>#</th>
+          <th>Usuário</th>
+          <th>Login</th>
+          <th>Logout</th>
+          <th>Duração</th>
+          <th>IP</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in sessoes %}
+        <tr>
+          <td>{{ forloop.counter }}</td>
+          <td>{{ s.user.username }}</td>
+          <td>{{ s.login_time|date:"d/m/Y H:i:s" }}</td>
+          <td>{{ s.logout_time|date:"d/m/Y H:i:s"|default:"—" }}</td>
+          <td>{{ s.duration|default:"—" }}</td>
+          <td>{{ s.ip|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="text-center text-muted">
+            Nenhuma sessão registrada.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+{% endblock %}

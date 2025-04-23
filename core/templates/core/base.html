@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Gestão Patrimonial{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        .nav-link.logout {
+            color: white !important;
+            transition: color 0.3s ease;
+        }
+        .nav-link.logout:hover {
+            color: red !important;
+        }
+        .navbar .nav-link.active {
+            border-bottom: 2px solid white;
+        }
+    </style>
+</head>
+<body>
+{% if user.is_authenticated %}
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+        <div class="container">
+            <a class="navbar-brand" href="{% url 'lista_produtos' %}">Gestão Patrimonial</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse justify-content-between" id="navbarNav">
+                <!-- Menu principal -->
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link {% if '/produtos/' in request.path %}active{% endif %}"
+                           href="{% url 'lista_produtos' %}">Estoque</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if '/pedidos/' in request.path %}active{% endif %}"
+                           href="{% url 'lista_pedidos' %}">Pedidos</a>
+                    </li>
+                    {% if user.papel == 'admin' %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if '/fornecedores/' in request.path %}active{% endif %}"
+                           href="{% url 'fornecedores' %}">Fornecedores</a>
+                    </li>
+                    {% endif %}
+                    {% if user.papel == 'admin' %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if '/usuarios/' in request.path %}active{% endif %}"
+                           href="{% url 'lista_usuarios' %}">Usuários</a>
+                    </li>
+                    {% endif %}
+                    {% if user.papel != 'operador' %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if '/dashboard/' in request.path %}active{% endif %}"
+                        href="{% url 'dashboard' %}">Dashboard/Relatórios</a>
+                    </li>
+                    {% endif %}
+                    {% if user.papel == 'admin' %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'configuracoes' %}">Configurações</a>
+                    </li>
+                    {% endif %}
+                </ul>
+
+                <!-- Dropdown do usuário -->
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown"
+                           role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            Bem-vindo, {{ user.username }}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                            <li>
+                                <a class="dropdown-item" href="{% url 'editar_perfil' %}">
+                                    <i class="bi bi-person-lines-fill me-1"></i>
+                                    Editar Cadastro
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item logout" href="{% url 'logout' %}">
+                                    <i class="bi bi-box-arrow-right me-1"></i>
+                                    Sair
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-5 pt-5">
+        {% block content %}{% endblock %}
+    </div>
+{% else %}
+    <div class="d-flex justify-content-center align-items-center vh-100">
+        <div class="card p-4 shadow" style="width: 350px;">
+            {% block login_content %}{% endblock %}
+        </div>
+    </div>
+{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

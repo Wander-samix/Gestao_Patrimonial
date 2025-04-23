@@ -1,0 +1,27 @@
+{% extends "core/base.html" %}
+
+{% block login_content %}
+<div class="d-flex justify-content-center align-items-center vh-100">
+    <div class="card p-4 shadow" style="width: 350px;">
+        <h3 class="text-center">Login</h3>
+        <form method="POST">
+            {% csrf_token %}
+            {% if error %}
+                <p class="text-danger text-center">{{ error }}</p>
+            {% endif %}
+            <div class="mb-3">
+                <label class="form-label">Usuário</label>
+                <input type="text" name="username" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Senha</label>
+                <input type="password" name="password" class="form-control" required>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Entrar</button>
+        </form>
+        <div class="text-center mt-3">
+            <a href="{% url 'password_reset' %}">Esqueci minha senha</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

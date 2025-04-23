@@ -1,0 +1,79 @@
+{% extends 'core/base.html' %}
+{% block title %}Confirmar Importação de Produtos{% endblock %}
+{% block content %}
+<div class="container mt-5">
+    <h3 class="mb-4">Produtos extraídos da Nota Fiscal</h3>
+    {% if produtos %}
+    <form method="post" action="{% url 'cadastro_produtos' %}">
+        {% csrf_token %}
+        <div class="table-responsive">
+            <style>
+                /* Cabeçalho mantém sem quebra para área */
+                .table-responsive th.area-col {
+                    white-space: nowrap;
+                    width: 150px;
+                }
+                /* Corpo pode quebrar em geral */
+                .table-responsive td {
+                    white-space: normal;
+                    word-break: break-word;
+                }
+                /* Exceção: select de área não quebra linhas */
+                .table-responsive td.area-col select {
+                    white-space: nowrap !important;
+                }
+            </style>
+            <table class="table table-bordered table-striped mb-0">
+                <thead class="text-center align-middle" style="background-color:#004aad;color:white;">
+                    <tr>
+                        <th style="width:80px;">NFe&nbsp;Nº</th>
+                        <th style="width:120px;">Código de Barras</th>
+                        <th style="width:200px;">Descrição</th>
+                        <th style="width:180px;">Fornecedor</th>
+                        <th class="area-col">Área</th>
+                        <th style="width:80px;">Lote</th>
+                        <th style="width:120px;">Validade</th>
+                        <th style="width:80px;">Quant.</th>
+                        <th style="width:120px;">Preço Unitário</th>
+                        <th style="width:100px;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for produto in produtos %}
+                    <tr>
+                        <td><input type="text" name="nfe_numero" value="{{ produto.nfe_numero }}" class="form-control form-control-sm text-center w-100" readonly></td>
+                        <td><input type="text" name="codigo_barras" value="{{ produto.codigo_barras }}" class="form-control form-control-sm w-100"></td>
+                        <td><input type="text" name="descricao" value="{{ produto.descricao }}" class="form-control form-control-sm w-100"></td>
+                        <td><input type="text" name="fornecedor_nome" value="{{ produto.fornecedor_nome }}" class="form-control form-control-sm w-100" readonly></td>
+                        <td class="area-col">
+                            <select name="area" class="form-select form-select-sm w-100">
+                                {% for area in areas %}
+                                    <option value="{{ area.id }}" {% if area.id == produto.area_id %}selected{% endif %}>{{ area.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td><input type="text" name="lote" value="{{ produto.lote }}" class="form-control form-control-sm text-center w-100" readonly></td>
+                        <td><input type="date" name="validade" value="{{ produto.validade }}" class="form-control form-control-sm w-100"></td>
+                        <td><input type="number" name="quantidade" value="{{ produto.quantidade }}" class="form-control form-control-sm w-100"></td>
+                        <td><input type="number" name="preco_unitario" step="0.01" value="{{ produto.preco_unitario }}" class="form-control form-control-sm w-100"></td>
+                        <td>
+                            <select name="status" class="form-select form-select-sm w-100">
+                                <option value="ativo" {% if produto.status == 'ativo' %}selected{% endif %}>ativo</option>
+                                <option value="inativo" {% if produto.status == 'inativo' %}selected{% endif %}>inativo</option>
+                            </select>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="d-flex justify-content-end mt-4 gap-2">
+            <a href="{% url 'upload_nfe' %}" class="btn btn-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-primary">Confirmar Importação</button>
+        </div>
+    </form>
+    {% else %}
+        <div class="alert alert-warning">Nenhum produto encontrado na NFe.</div>
+    {% endif %}
+</div>
+{% endblock %}

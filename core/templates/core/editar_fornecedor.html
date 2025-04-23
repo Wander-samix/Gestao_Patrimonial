@@ -1,0 +1,67 @@
+{% extends 'core/base.html' %}
+{% block title %}Editar Fornecedor{% endblock %}
+
+{% block content %}
+<div class="container mt-5" style="max-width:600px;">
+  <h3>Editar Fornecedor</h3>
+  <form method="post" class="mt-4">
+    {% csrf_token %}
+
+    <!-- Nome -->
+    <div class="mb-3">
+      <label for="id_nome" class="form-label">Nome</label>
+      <input type="text"
+             id="id_nome"
+             name="nome"
+             value="{{ fornecedor.nome }}"
+             class="form-control"
+             required>
+    </div>
+
+    <!-- CNPJ -->
+    <div class="mb-3">
+      <label for="id_cnpj" class="form-label">CNPJ</label>
+      <input type="text"
+             id="id_cnpj"
+             name="cnpj"
+             value="{{ fornecedor.cnpj }}"
+             class="form-control">
+    </div>
+
+    <!-- Endereço -->
+    <div class="mb-3">
+      <label for="id_endereco" class="form-label">Endereço</label>
+      <textarea id="id_endereco"
+                name="endereco"
+                class="form-control"
+                rows="3">{{ fornecedor.endereco }}</textarea>
+    </div>
+
+    <!-- Telefone -->
+    <div class="mb-3">
+      <label for="id_telefone" class="form-label">Telefone</label>
+      <input type="text"
+             id="id_telefone"
+             name="telefone"
+             value="{{ fornecedor.telefone }}"
+             class="form-control">
+    </div>
+
+    <!-- Email -->
+    <div class="mb-3">
+      <label for="id_email" class="form-label">Email</label>
+      <input type="email"
+             id="id_email"
+             name="email"
+             value="{{ fornecedor.email }}"
+             class="form-control">
+    </div>
+
+    <!-- Ações -->
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-primary">Salvar</button>
+      <a href="{% url 'fornecedores' %}" class="btn btn-secondary">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

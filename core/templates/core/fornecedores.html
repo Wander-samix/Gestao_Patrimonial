@@ -1,0 +1,109 @@
+{% extends 'core/base.html' %}
+{% block title %}Lista de Fornecedores{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Título e Botão para novo fornecedor -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Fornecedores</h2>
+        <button class="btn btn-success" onclick="adicionarLinhaFornecedor()">+ Fornecedor</button>
+    </div>
+
+    <!-- Tabela de fornecedores -->
+    <table class="table table-bordered table-hover">
+        <thead class="text-center align-middle bg-primary text-white">
+            <tr>
+                <th>#</th>
+                <th>Nome</th>
+                <th>CNPJ</th>
+                <th>Telefone</th>
+                <th>Email</th>
+                <th>Status</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody class="text-center align-middle">
+            {% for f in fornecedores %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ f.nome }}</td>
+                <td>{{ f.cnpj|default:'–' }}</td>
+                <td>{{ f.telefone|default:'–' }}</td>
+                <td>{{ f.email|default:'–' }}</td>
+                <td>
+                    {% if f.ativo %}Ativo{% else %}Inativo{% endif %}
+                </td>
+                <td>
+                    <div class="d-flex justify-content-center gap-1">
+                        {% if not f.ativo %}
+                        <a href="{% url 'ativar_fornecedor' f.id %}" class="btn btn-sm btn-outline-success" title="Ativar">
+                            <i class="bi bi-check-circle"></i>
+                        </a>
+                        {% else %}
+                        <a href="{% url 'desativar_fornecedor' f.id %}" class="btn btn-sm btn-outline-warning" title="Desativar">
+                            <i class="bi bi-x-circle"></i>
+                        </a>
+                        {% endif %}
+                        <a href="{% url 'editar_fornecedor' f.id %}" class="btn btn-sm btn-outline-secondary" title="Editar">
+                            <i class="bi bi-pencil-square"></i>
+                        </a>
+                        <a href="{% url 'deletar_fornecedor' f.id %}" class="btn btn-sm btn-outline-danger" title="Excluir" onclick="return confirm('Deseja excluir este fornecedor?')">
+                            <i class="bi bi-trash"></i>
+                        </a>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" class="text-center">Nenhum fornecedor encontrado.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Script para inserção inline de fornecedores -->
+<script>
+function adicionarLinhaFornecedor() {
+    const tbody = document.querySelector("table tbody");
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+        <td>-</td>
+        <td><input type="text" class="form-control form-control-sm nome" placeholder="Nome"></td>
+        <td><input type="text" class="form-control form-control-sm cnpj" placeholder="CNPJ"></td>
+        <td><input type="text" class="form-control form-control-sm telefone" placeholder="Telefone"></td>
+        <td><input type="email" class="form-control form-control-sm email" placeholder="Email"></td>
+        <td>-</td>
+        <td class="text-center">
+            <button class="btn btn-sm btn-outline-success" onclick="salvarFornecedor(this)">💾</button>
+            <button class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()">🗑</button>
+        </td>
+    `;
+    tbody.prepend(tr);
+    tr.querySelector(".nome").focus();
+}
+
+function salvarFornecedor(btn) {
+    const tr = btn.closest("tr");
+    const data = {
+        nome: tr.querySelector(".nome").value,
+        cnpj: tr.querySelector(".cnpj").value,
+        telefone: tr.querySelector(".telefone").value,
+        email: tr.querySelector(".email").value
+    };
+    fetch("{% url 'salvar_fornecedor_inline' %}", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": "{{ csrf_token }}",
+        },
+        body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(r => {
+        if (r.sucesso) location.reload();
+        else alert("Erro: " + r.erro);
+    });
+}
+</script>
+{% endblock %}

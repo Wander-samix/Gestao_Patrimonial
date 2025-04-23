@@ -1,0 +1,103 @@
+{# core/templates/core/editar_produto.html #}
+{% extends "core/base.html" %}
+
+{% block title %}Editar Produto{% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+  <h2 class="mb-4">Editar Produto</h2>
+  <div class="card shadow-sm">
+    <div class="card-body">
+
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+
+        <div class="row g-3">
+          {# NFe Número #}
+          <div class="col-md-4">
+            {{ form.nfe_numero.label_tag }}
+            {{ form.nfe_numero }}
+            {{ form.nfe_numero.errors }}
+          </div>
+
+          {# Código de Barras #}
+          <div class="col-md-4">
+            {{ form.codigo_barras.label_tag }}
+            {{ form.codigo_barras }}
+            {{ form.codigo_barras.errors }}
+          </div>
+
+          {# Descrição #}
+          <div class="col-md-4">
+            {{ form.descricao.label_tag }}
+            {{ form.descricao }}
+            {{ form.descricao.errors }}
+          </div>
+
+          {# Fornecedor #}
+          <div class="col-md-4">
+            {{ form.fornecedor.label_tag }}
+            {{ form.fornecedor }}
+            {{ form.fornecedor.errors }}
+          </div>
+
+          {# Área #}
+          <div class="col-md-4">
+            {{ form.area.label_tag }}
+            {{ form.area }}
+            {{ form.area.errors }}
+          </div>
+
+          {# Lote (somente leitura) #}
+          <div class="col-md-4">
+            <label class="form-label">Lote</label>
+            <input type="text"
+                   class="form-control"
+                   value="{{ produto.lote }}"
+                   readonly>
+          </div>
+
+          {# Validade #}
+          <div class="col-md-3">
+            {{ form.validade.label_tag }}
+            {{ form.validade }}
+            {{ form.validade.errors }}
+          </div>
+
+          {# Quantidade #}
+          <div class="col-md-3">
+            {{ form.quantidade.label_tag }}
+            {{ form.quantidade }}
+            {{ form.quantidade.errors }}
+          </div>
+
+          {# Preço unitário #}
+          <div class="col-md-3">
+            {{ form.preco_unitario.label_tag }}
+            {{ form.preco_unitario }}
+            {{ form.preco_unitario.errors }}
+          </div>
+
+          {# Status #}
+          <div class="col-md-3">
+            {{ form.status.label_tag }}
+            {{ form.status }}
+            {{ form.status.errors }}
+          </div>
+        </div>
+
+        <div class="mt-4 d-flex gap-2">
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-save me-1"></i> Salvar Alterações
+          </button>
+          <a href="{% url 'lista_produtos' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-x-circle me-1"></i> Cancelar
+          </a>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

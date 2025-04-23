@@ -1,0 +1,208 @@
+{% extends "core/base.html" %}
+{% load util %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+
+  <h1 class="mb-4">Dashboard</h1>
+
+  <div class="row g-3 mb-5">
+    {% if user.papel != 'operador' %}
+      <!-- Produtos -->
+      <div class="col-sm-6 col-md-4 col-xl-2">
+        <div class="card shadow-sm text-center">
+          <div class="card-body">
+            <h6 class="text-muted">Produtos</h6>
+            <h3>{{ produtos_count }}</h3>
+          </div>
+        </div>
+      </div>
+      <!-- Usuários -->
+      <div class="col-sm-6 col-md-4 col-xl-2">
+        <div class="card shadow-sm text-center">
+          <div class="card-body">
+            <h6 class="text-muted">Usuários</h6>
+            <h3>{{ usuarios_count }}</h3>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
+    <!-- Pedidos -->
+    <div class="col-sm-6 col-md-4 col-xl-2">
+      <div class="card shadow-sm text-center">
+        <div class="card-body">
+          <h6 class="text-muted">Pedidos</h6>
+          <h3>{{ pedidos_count }}</h3>
+        </div>
+      </div>
+    </div>
+
+    <!-- Estoque – Entradas -->
+    <div class="col-sm-6 col-md-4 col-xl-2">
+      <div class="card shadow-sm text-center">
+        <div class="card-body">
+          <h6 class="text-muted">Estoque – Entradas</h6>
+          <h3>{{ entradas_totais }}</h3>
+        </div>
+      </div>
+    </div>
+
+    {% if user.papel != 'operador' %}
+      <!-- Em Estoque (real) -->
+      <div class="col-sm-6 col-md-4 col-xl-2">
+        <div class="card shadow-sm text-center">
+          <div class="card-body">
+            <h6 class="text-muted">Em Estoque</h6>
+            <h3>{{ estoque_real_total }}</h3>
+          </div>
+        </div>
+      </div>
+      <!-- Valor Total -->
+      <div class="col-sm-6 col-md-6 col-xl-2">
+        <div class="card shadow-sm text-center">
+          <div class="card-body">
+            <h6 class="text-muted">Valor Total (R$)</h6>
+            <h3>{{ valor_total|floatformat:2 }}</h3>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
+    <!-- Cards de status de pedido -->
+    {% for chave, label in STATUS_CHOICES %}
+      <div class="col-sm-6 col-md-4 col-xl-2">
+        <div class="card bg-dark text-white shadow-sm text-center">
+          <div class="card-body">
+            <h6>{{ label }}</h6>
+            <h3>{{ pedidos_por_status|get_item:chave }}</h3>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  {% if user.papel != 'operador' %}
+    <div class="mb-4">
+      <a href="{% url 'exportar_estoque_por_area_excel' %}"
+         class="btn btn-outline-primary">
+        Exportar Estoque por Área (Excel)
+      </a>
+    </div>
+  {% endif %}
+
+  <form method="get" class="mb-3">
+    <div class="row g-2 align-items-end">
+      <div class="col-auto">
+        <label for="data" class="form-label">Data de Movimentação:</label>
+        <input type="date" id="data" name="data"
+               value="{{ data_mov|date:'Y-m-d' }}"
+               class="form-control">
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-outline-secondary">Filtrar</button>
+      </div>
+    </div>
+  </form>
+
+  <a href="{% url 'exportar_dashboard_excel' %}"
+     class="btn btn-success mb-4">
+    Exportar Movimentações (Excel)
+  </a>
+
+  {# — Sticky header & colunas fixas idêntico ao lista_produtos — #}
+  <style>
+    .table thead th {
+      background: #000; color: #fff;
+      font-weight:400; font-size:.9rem;
+    }
+    .table thead th:first-child {
+      position: sticky; left:0; z-index:4;
+    }
+    .table thead th:last-child {
+      position: sticky; right:0; z-index:4;
+    }
+    .table tbody td:first-child {
+      position: sticky; left:0; background:#fff; z-index:2;
+    }
+    .table tbody td:last-child {
+      position: sticky; right:0; background:#fff; z-index:2;
+    }
+  </style>
+
+  <!-- Movimentações do dia -->
+  <div class="card mb-5 table-responsive">
+    <div class="card-header bg-secondary text-white">
+      Movimentações em {{ data_mov|date:"d/m/Y" }}
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-sm table-bordered mb-0 text-center align-middle">
+        <thead>
+          <tr>
+            <th>Tipo</th>
+            <th>Produto</th>
+            <th>Quantidade</th>
+            <th>Usuário</th>
+            <th>Data/Hora</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for mov in movimentacoes_dia %}
+            <tr>
+              <td>{{ mov.get_tipo_display }}</td>
+              <td class="text-start">{{ mov.produto.descricao }}</td>
+              <td>{{ mov.quantidade }}</td>
+              <td>{{ mov.usuario.username }}</td>
+              <td>{{ mov.data|date:"d/m/Y H:i" }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="5" class="text-center">Nenhuma movimentação encontrada.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if user.papel != 'operador' %}
+    <!-- Logs de ação -->
+    <div class="card table-responsive">
+      <div class="card-header bg-dark text-white">
+        Ações do Sistema em {{ data_mov|date:"d/m/Y" }}
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm table-striped mb-0 text-center align-middle">
+          <thead>
+            <tr>
+              <th>Usuário</th>
+              <th>Ação</th>
+              <th>Detalhes</th>
+              <th>Data/Hora</th>
+              <th>IP</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for log in logs_dia %}
+              <tr>
+                <td>{{ log.usuario.username|default:"—" }}</td>
+                <td>{{ log.acao }}</td>
+                <td class="text-start">{{ log.detalhes|default:"—" }}</td>
+                <td>{{ log.data_hora|date:"d/m/Y H:i:s" }}</td>
+                <td>{{ log.ip|default:"—" }}</td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="5" class="text-center">Nenhuma ação registrada.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}

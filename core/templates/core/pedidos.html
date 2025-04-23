@@ -1,0 +1,67 @@
+{% extends 'core/base.html' %}
+{% block title %}Pedidos{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+    <h2 class="me-auto">Pedidos</h2>
+    <a href="{% url 'novo_pedido' %}" class="btn btn-primary">+ Novo Pedido</a>
+</div>
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col-auto">
+        <select name="status" class="form-select">
+            <option value="">Todos os Status</option>
+            {% for chave, label in pedidos.model.STATUS_CHOICES %}
+                <option value="{{ chave }}" {% if filtro_status == chave %}selected{% endif %}>
+                    {{ label }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-outline-secondary">Filtrar</button>
+        <a href="{% url 'pedidos' %}" class="btn btn-outline-secondary">Limpar</a>
+    </div>
+</form>
+
+<table class="table table-hover">
+    <thead>
+        <tr>
+            <th>Código</th>
+            <th>Data</th>
+            <th>Usuário</th>
+            <th>Status</th>
+            <th>Ações</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for pedido in pedidos %}
+        <tr>
+            <td>{{ pedido.codigo }}</td>
+            <td>{{ pedido.data_solicitacao|date:"d/m/Y H:i" }}</td>
+            <td>{{ pedido.usuario.username }}</td>
+            <td>{{ pedido.get_status_display }}</td>
+            <td>
+                {% if pedido.status == 'aguardando_aprovacao' %}
+                    {% if user.papel == 'admin' or user.papel == 'tecnico' %}
+                        <a href="{% url 'aprovar_pedido' pedido.id %}"
+                            class="btn btn-sm btn-success">
+                            Aprovar
+                        </a>
+                    {% endif %}
+                {% endif %}
+
+                {% if pedido.status == 'aprovado' %}
+                    <a href="{% url 'separar_pedido' pedido.id %}" class="btn btn-sm btn-warning">Separar</a>
+                {% endif %}
+                {% if pedido.status == 'separado' %}
+                    <a href="{% url 'registrar_retirada' pedido.id %}" class="btn btn-sm btn-info">Retirar</a>
+                {% endif %}
+            </td>
+        </tr>
+    {% empty %}
+        <tr><td colspan="5" class="text-center">Nenhum pedido encontrado.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends 'core/base.html' %}
+{% block title %}Confirmar Importação de Produtos{% endblock %}
+{% block content %}
+<div class="container mt-5">
+    <h3 class="mb-4">Produtos extraídos da Nota Fiscal</h3>
+    {% if produtos %}
+    <form method="post" action="{% url 'cadastro_produtos' %}">
+        {% csrf_token %}
+        <table class="table table-bordered table-striped">
+            <thead>
+                <tr>
+                    <th>Código de Barras</th>
+                    <th>Descrição</th>
+                    <th>Fornecedor ID</th>
+                    <th>Lote</th>
+                    <th>Validade</th>
+                    <th>Quantidade</th>
+                    <th>Preço Unitário</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for produto in produtos %}
+                <tr>
+                    <td><input type="text" name="codigo_barras" value="{{ produto.codigo_barras }}" class="form-control"></td>
+                    <td><input type="text" name="descricao" value="{{ produto.descricao }}" class="form-control"></td>
+                    <td><input type="number" name="fornecedor_id" value="{{ produto.fornecedor_id }}" class="form-control"></td>
+                    <td><input type="text" name="lote" value="{{ produto.lote }}" class="form-control"></td>
+                    <td><input type="date" name="validade" value="{{ produto.validade }}" class="form-control"></td>
+                    <td><input type="number" name="quantidade" value="{{ produto.quantidade }}" class="form-control"></td>
+                    <td><input type="number" step="0.01" name="preco_unitario" value="{{ produto.preco_unitario }}" class="form-control"></td>
+                    <td>
+                        <select name="status" class="form-select">
+                            <option value="ativo" {% if produto.status == 'ativo' %}selected{% endif %}>ativo</option>
+                            <option value="inativo" {% if produto.status == 'inativo' %}selected{% endif %}>inativo</option>
+                        </select>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div class="d-flex justify-content-end mt-4">
+            <a href="{% url 'upload_nfe' %}" class="btn btn-secondary me-2">Cancelar</a>
+            <button type="submit" class="btn btn-primary">Confirmar Importação</button>
+        </div>
+    </form>
+    {% else %}
+        <div class="alert alert-warning">Nenhum produto encontrado na NFe.</div>
+    {% endif %}
+</div>
+{% endblock %}
