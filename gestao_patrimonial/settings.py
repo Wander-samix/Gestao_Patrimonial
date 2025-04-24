@@ -12,7 +12,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Segurança
 SECRET_KEY = 'django-insecure-7@5@rv*ih2*&#^lc-9j9l3np8=9fzpdq9yk@re_1p=*hej-kwp'
 DEBUG = True
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 # Configuração correta dos arquivos estáticos
 STATIC_URL = '/static/'
