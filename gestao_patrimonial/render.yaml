@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: gestao-patrimonial
+    env: python
+    buildCommand: |
+      pip install -r requirements.txt
+      python manage.py migrate --noinput
+    startCommand: gunicorn gestao_patrimonial.wsgi:application --bind 0.0.0.0:$PORT
+    postDeploy: |
+      python manage.py createsuperuser \
+        --no-input \
+        --username "$DJANGO_SUPERUSER_USERNAME" \
+        --email "$DJANGO_SUPERUSER_EMAIL"
