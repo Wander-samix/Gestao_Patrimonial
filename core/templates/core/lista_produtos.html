@@ -73,7 +73,9 @@
     <table class="table table-bordered table-hover mb-0 text-center align-middle">
       <thead class="table-dark text-center align-middle" style="font-weight:400; font-size:0.9rem;">
         <tr>
-          {% if user.papel != 'operador' %}<th style="width:2rem;"><input type="checkbox" id="select-all"></th>{% endif %}
+          {% if user.papel != 'operador' %}<th class="table-dark text-white" style="width:2rem;">
+            <input type="checkbox" id="select-all">
+          </th>{% endif %}
           <th style="width:2rem;">#</th>
           <th>NFe Nº</th>
           <th class="codigo-barras-col">Código de Barras</th>
@@ -89,7 +91,7 @@
           <th>Preço Unit.</th>
           <th>Usuário</th>
           <th>Data/Hora Cadastro</th>
-          {% if user.papel != 'operador' %}<th style="width:6rem;">Ações</th>{% endif %}
+          {% if user.papel != 'operador' %}<th class="table-dark text-white" style="width:6rem;">Ações</th>{% endif %}
         </tr>
       </thead>
       <tbody>
