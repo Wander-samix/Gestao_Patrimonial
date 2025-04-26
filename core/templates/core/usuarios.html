@@ -3,147 +3,150 @@
 
 {% block content %}
 <div class="container mt-4">
-  <!-- Título e botão inline -->
-  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
-    <h2 class="mb-0">Usuários</h2>
-    <button class="btn btn-success flex-shrink-0" onclick="adicionarLinhaUsuario()">+ Usuário</button>
-  </div>
+    <h2>Usuários</h2>
+    
+    <div class="text-end mb-3">
+        <a href="#" class="btn btn-success" onclick="adicionarLinhaUsuario()">+ Usuário</a>
+    </div>
 
-  <!-- Tabela responsiva -->
-  <div class="table-responsive">
-    <table class="table table-bordered table-hover mb-0 text-center align-middle">
-      <thead class="bg-primary text-white text-center align-middle">
-        <tr>
-          <th>#</th>
-          <th>Usuário</th>
-          <th class="d-none d-sm-table-cell">Perfil</th>
-          <th class="d-none d-md-table-cell">Matrícula</th>
-          <th class="d-none d-lg-table-cell">E-mail</th>
-          <th class="d-none d-md-table-cell">Áreas de Atuação</th>
-          <th>Status</th>
-          <th>Ações</th>
-        </tr>
-      </thead>
-      <tbody class="text-center align-middle">
-        {% for usuario in usuarios %}
-        <tr>
-          <td>{{ forloop.counter }}</td>
-          <td class="text-start">{{ usuario.username }}</td>
-          <td class="d-none d-sm-table-cell">{{ usuario.get_papel_display }}</td>
-          <td class="d-none d-md-table-cell">{{ usuario.matricula|default:"–" }}</td>
-          <td class="d-none d-lg-table-cell">{{ usuario.email }}</td>
-          <td class="d-none d-md-table-cell">
-            {% if usuario.papel|lower in ['admin','tecnico'] or usuario.areas.count == total_areas %}
-              Todas
-            {% elif usuario.areas.all %}
-              {{ usuario.areas.all|join:", " }}
-            {% else %}
-              —
-            {% endif %}
-          </td>
-          <td>
-            {% if usuario.ativo %}
-              <span class="badge bg-success">Ativo</span>
-            {% else %}
-              <span class="badge bg-secondary">Inativo</span>
-            {% endif %}
-          </td>
-          <td>
-            <div class="d-flex flex-wrap justify-content-center gap-1">
-              {% if not usuario.ativo %}
-                <a href="{% url 'ativar_usuario' usuario.id %}"
-                   class="btn btn-sm btn-outline-success" title="Ativar usuário">
-                  <i class="bi bi-check-circle"></i>
-                </a>
-              {% endif %}
-              {% if usuario.ativo %}
-                <a href="{% url 'desativar_usuario' usuario.id %}"
-                   class="btn btn-sm btn-outline-warning" title="Desativar usuário">
-                  <i class="bi bi-x-circle"></i>
-                </a>
-              {% endif %}
-              <a href="{% url 'editar_usuario' usuario.id %}"
-                 class="btn btn-sm btn-outline-secondary" title="Editar usuário">
-                <i class="bi bi-pencil-square"></i>
-              </a>
-              <a href="{% url 'deletar_usuario' usuario.id %}"
-                 class="btn btn-sm btn-outline-danger" title="Excluir usuário"
-                 onclick="return confirm('Deseja realmente excluir este usuário?')">
-                <i class="bi bi-trash"></i>
-              </a>
-            </div>
-          </td>
-        </tr>
-        {% empty %}
-        <tr>
-          <td colspan="8" class="text-center">Nenhum usuário encontrado.</td>
-        </tr>
-        {% endfor %}
-      </tbody>
+    <table class="table table-bordered table-hover">
+        <thead class="text-center align-middle" style="background-color: #004aad; color: white;">
+            <tr>
+                <th>#</th>
+                <th>Usuário</th>
+                <th>Perfil</th>
+                <th>Matrícula</th>
+                <th>E‑mail</th>
+                <th>Áreas de Atuação</th>
+                <th>Status</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody class="text-center align-middle">
+            {% for usuario in usuarios %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ usuario.username }}</td>
+                <td>{{ usuario.get_papel_display }}</td>
+                <td>{{ usuario.matricula|default:"–" }}</td>
+                <td>{{ usuario.email }}</td>
+                <td>
+                    {% if usuario.papel|lower == 'admin' or usuario.papel|lower == 'tecnico' %}
+                        Todas
+                    {% elif usuario.areas.count == total_areas %}
+                        Todas
+                    {% elif usuario.areas.all %}
+                        {{ usuario.areas.all|join:", " }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+                <td>
+                    {% if usuario.ativo %}
+                        <span class="badge bg-success">Ativo</span>
+                    {% else %}
+                        <span class="badge bg-secondary">Inativo</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="d-flex justify-content-center gap-1">
+                        {% if not usuario.ativo %}
+                        <a href="{% url 'ativar_usuario' usuario.id %}" class="btn btn-sm btn-outline-success" title="Ativar usuário">
+                            <i class="bi bi-check-circle"></i>
+                        </a>
+                        {% endif %}
+                        {% if usuario.ativo %}
+                        <a href="{% url 'desativar_usuario' usuario.id %}" class="btn btn-sm btn-outline-warning" title="Desativar usuário">
+                            <i class="bi bi-x-circle"></i>
+                        </a>
+                        {% endif %}
+                        <a href="{% url 'editar_usuario' usuario.id %}" class="btn btn-sm btn-outline-secondary" title="Editar usuário">
+                            <i class="bi bi-pencil-square"></i>
+                        </a>
+                        <a href="{% url 'deletar_usuario' usuario.id %}" class="btn btn-sm btn-outline-danger" title="Excluir usuário" onclick="return confirm('Deseja realmente excluir este usuário?')">
+                            <i class="bi bi-trash"></i>
+                        </a>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" class="text-center">Nenhum usuário encontrado.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
     </table>
-  </div>
 </div>
 
-<!-- Inline add script -->
+<!-- Inline add -->
 <script>
 function adicionarLinhaUsuario() {
-  const tbody = document.querySelector('table tbody');
-  const tr = document.createElement('tr');
-  tr.innerHTML = `
-    <td>—</td>
-    <td><input type="text" class="form-control form-control-sm w-100 username" placeholder="Usuário"></td>
-    <td class="d-none d-sm-table-cell">
-      <select class="form-select form-select-sm papel">
-        <option value="admin">Admin</option>
-        <option value="operador" selected>Operador</option>
-        <option value="tecnico">Técnico</option>
-      </select>
-    </td>
-    <td class="d-none d-md-table-cell"><input type="text" class="form-control form-control-sm w-100 matricula" placeholder="Matrícula"></td>
-    <td class="d-none d-lg-table-cell"><input type="email" class="form-control form-control-sm w-100 email" placeholder="E-mail"></td>
-    <td class="d-none d-md-table-cell">
-      <select class="form-select form-select-sm areas" multiple size="3">
-        <option value="all" selected>Todas</option>
-        {% for area in areas %}
-        <option value="{{ area.id }}">{{ area.nome }}</option>
-        {% endfor %}
-      </select>
-    </td>
-    <td>—</td>
-    <td class="d-flex flex-column flex-sm-row justify-content-center gap-1">
-      <button class="btn btn-sm btn-outline-success w-100 w-sm-auto" onclick="salvarUsuario(this)" title="Salvar">
-        <i class="bi bi-save"></i>
-      </button>
-      <button class="btn btn-sm btn-outline-danger w-100 w-sm-auto" onclick="this.closest('tr').remove()" title="Cancelar">
-        <i class="bi bi-x-lg"></i>
-      </button>
-    </td>
-  `;
-  tbody.prepend(tr);
-  tr.querySelector('.username').focus();
+    const tbody = document.querySelector("table tbody");
+    const novaLinha = document.createElement("tr");
+    novaLinha.innerHTML = `
+        <td>—</td>
+        <td><input type="text" class="form-control form-control-sm username" placeholder="Usuário"></td>
+        <td>
+          <select class="form-select form-select-sm papel">
+            <option value="admin">Admin</option>
+            <option value="operador" selected>Operador</option>
+            <option value="tecnico">Técnico</option>
+          </select>
+        </td>
+        <td><input type="text" class="form-control form-control-sm matricula" placeholder="Matrícula"></td>
+        <td><input type="email" class="form-control form-control-sm email" placeholder="E‑mail"></td>
+        <td>
+          <select class="form-select form-select-sm areas" multiple size="3">
+            <option value="all" selected>Todas</option>
+            {% for area in areas %}
+            <option value="{{ area.id }}">{{ area.nome }}</option>
+            {% endfor %}
+          </select>
+        </td>
+        <td>—</td>
+        <td>
+            <div class="d-flex justify-content-center gap-1">
+                <button class="btn btn-sm btn-outline-success" onclick="salvarUsuario(this)" title="Salvar">
+                    <i class="bi bi-save"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()" title="Cancelar">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+        </td>
+    `;
+    tbody.prepend(novaLinha);
+    novaLinha.querySelector(".username").focus();
 }
 
 function salvarUsuario(botao) {
-  const tr = botao.closest('tr');
-  const selected = Array.from(tr.querySelectorAll('.areas option:checked')).map(o => o.value);
-  const dados = {
-    username: tr.querySelector('.username').value.trim(),
-    papel: tr.querySelector('.papel').value,
-    matricula: tr.querySelector('.matricula').value.trim(),
-    email: tr.querySelector('.email').value.trim(),
-    areas: selected
-  };
-  fetch("{% url 'salvar_usuario_inline' %}", {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
-    body: JSON.stringify(dados)
-  })
-  .then(res => res.json())
-  .then(res => {
-    if (res.sucesso) location.reload();
-    else alert('Erro: ' + res.erro);
-  })
-  .catch(() => alert('Erro ao salvar o usuário.'));
+    const linha = botao.closest("tr");
+    const selectedAreas = Array.from(linha.querySelectorAll('.areas option:checked')).map(o => o.value);
+    const dados = {
+        username: linha.querySelector(".username").value.trim(),
+        papel: linha.querySelector(".papel").value,
+        matricula: linha.querySelector(".matricula").value.trim(),
+        email: linha.querySelector(".email").value.trim(),
+        areas: selectedAreas,
+    };
+
+    fetch("{% url 'salvar_usuario_inline' %}", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": "{{ csrf_token }}",
+        },
+        body: JSON.stringify(dados)
+    })
+    .then(res => res.json())
+    .then(res => {
+        if (res.sucesso) {
+            location.reload();
+        } else {
+            alert("Erro: " + res.erro);
+        }
+    })
+    .catch(() => alert("Erro ao salvar o usuário."));
 }
 </script>
 {% endblock %}
