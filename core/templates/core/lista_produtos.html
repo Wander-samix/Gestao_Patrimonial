@@ -8,35 +8,29 @@
   <!-- filtros e exportação sempre visíveis -->
   <form method="GET" class="row gy-2 align-items-end mb-3">
     <div class="col-12 col-md-3">
-      <input type="text" name="busca" value="{{ busca }}"
-             class="form-control"
+      <input type="text" name="busca" value="{{ busca }}" class="form-control"
              placeholder="Buscar por descrição ou código de barras" autofocus>
     </div>
     <div class="col-12 col-md-3">
       <select name="filtro_area" class="form-select" onchange="this.form.submit()">
         <option value="">Todas as Áreas</option>
         {% for area in areas %}
-          <option value="{{ area.nome }}" {% if filtro_area == area.nome %}selected{% endif %}>
-            {{ area.nome }}
-          </option>
+          <option value="{{ area.nome }}" {% if filtro_area == area.nome %}selected{% endif %}>{{ area.nome }}</option>
         {% endfor %}
       </select>
     </div>
     <div class="col-12 col-md-2">
       <select name="filtro_status" class="form-select">
         <option value="">Todos os Status</option>
-        <option value="ativo"   {% if filtro_status == 'ativo'   %}selected{% endif %}>Ativo</option>
+        <option value="ativo" {% if filtro_status == 'ativo' %}selected{% endif %}>Ativo</option>
         <option value="inativo" {% if filtro_status == 'inativo' %}selected{% endif %}>Inativo</option>
       </select>
     </div>
     <div class="col-12 col-md-2">
       <div class="form-check mt-md-0 mt-2">
-        <input class="form-check-input" type="checkbox"
-               name="estoque_baixo" id="checkEstoqueBaixo" value="1"
+        <input class="form-check-input" type="checkbox" name="estoque_baixo" id="checkEstoqueBaixo" value="1"
                {% if estoque_baixo_aplicado %}checked{% endif %}>
-        <label class="form-check-label" for="checkEstoqueBaixo">
-          Somente Estoque Baixo
-        </label>
+        <label class="form-check-label" for="checkEstoqueBaixo">Somente Estoque Baixo</label>
       </div>
     </div>
     <div class="col-6 col-md-1">
@@ -49,39 +43,27 @@
     <div class="row mt-2">
       <div class="col-12">
         <div class="d-flex flex-wrap justify-content-end gap-2">
-          <div class="flex-grow-1 flex-md-grow-0">
-            <a href="{% url 'exportar_produtos_excel' %}?busca={{ busca }}&filtro_area={{ filtro_area }}&filtro_status={{ filtro_status }}&estoque_baixo={{ request.GET.estoque_baixo }}"
-               class="btn btn-outline-success w-100 w-md-auto">Exportar Excel</a>
-          </div>
+          <a href="{% url 'exportar_produtos_excel' %}?busca={{ busca }}&filtro_area={{ filtro_area }}&filtro_status={{ filtro_status }}&estoque_baixo={{ request.GET.estoque_baixo }}"
+             class="btn btn-outline-success w-100 w-md-auto">Exportar Excel</a>
           {% if user.papel != 'operador' %}
-            <div class="flex-grow-1 flex-md-grow-0">
-              <button id="delete-selected" class="btn btn-outline-danger w-100 w-md-auto">Excluir Selecionados</button>
-            </div>
-            <div class="flex-grow-1 flex-md-grow-0">
-              <a href="{% url 'upload_nfe' %}" class="btn btn-outline-primary w-100 w-md-auto">Importar NFe</a>
-            </div>
-            <div class="flex-grow-1 flex-md-grow-0">
-              <a href="#" class="btn btn-success w-100 w-md-auto" onclick="adicionarLinhaProduto()">+ Produto</a>
-            </div>
+            <button id="delete-selected" class="btn btn-outline-danger w-100 w-md-auto">Excluir Selecionados</button>
+            <a href="{% url 'upload_nfe' %}" class="btn btn-outline-primary w-100 w-md-auto">Importar NFe</a>
+            <a href="#" class="btn btn-success w-100 w-md-auto" onclick="adicionarLinhaProduto()">+ Produto</a>
           {% endif %}
         </div>
       </div>
     </div>
   </form>
 
+  <!-- configurações de estoque mínimo por área -->
+  {{ area_configs|json_script:"json_area_configs" }}
+
   <style>
-    /* Cabeçalho preto e texto branco */
-    .table thead th {
-      background-color: black;
-      color: white;
-    }
-    /* Fixa colunas */
-    .table thead th:first-child,
-    .table tbody td:first-child {
+    .table thead th { background-color: black; color: white; }
+    .table thead th:first-child, .table tbody td:first-child {
       position: sticky; left: 0; z-index: 4; background: white;
     }
-    .table thead th:last-child,
-    .table tbody td:last-child {
+    .table thead th:last-child, .table tbody td:last-child {
       position: sticky; right: 0; z-index: 4; background: white;
     }
   </style>
@@ -91,49 +73,41 @@
     <table class="table table-bordered table-hover mb-0 text-center align-middle">
       <thead class="table-dark text-center align-middle" style="font-weight:400; font-size:0.9rem;">
         <tr>
-          {% if user.papel != 'operador' %}
-            <th style="width:2rem;"><input type="checkbox" id="select-all"></th>
-          {% endif %}
+          {% if user.papel != 'operador' %}<th style="width:2rem;"><input type="checkbox" id="select-all"></th>{% endif %}
           <th style="width:2rem;">#</th>
           <th>NFe Nº</th>
-          <th>Código de Barras</th>
+          <th class="codigo-barras-col">Código de Barras</th>
           <th>Lote</th>
           <th>Descrição</th>
           <th>Fornecedor</th>
-          <th style="min-width:150px;">Área</th>
+          <th class="area-col" style="min-width:150px;">Área</th>
           <th>Validade</th>
           <th>Qtd.</th>
           <th>Estoque Real</th>
           <th>Reservado</th>
-          <th>Disponível</th>
+          <th class="disponivel-col">Disponível</th>
           <th>Preço Unit.</th>
           <th>Usuário</th>
           <th>Data/Hora Cadastro</th>
-          {% if user.papel != 'operador' %}
-            <th style="width:6rem;">Ações</th>
-          {% endif %}
+          {% if user.papel != 'operador' %}<th style="width:6rem;">Ações</th>{% endif %}
         </tr>
       </thead>
       <tbody>
         {% for produto in produtos %}
           <tr>
-            {% if user.papel != 'operador' %}
-              <td><input type="checkbox" class="select-row" value="{{ produto.id }}"></td>
-            {% endif %}
+            {% if user.papel != 'operador' %}<td><input type="checkbox" class="select-row" value="{{ produto.id }}"></td>{% endif %}
             <td>{{ forloop.counter }}</td>
             <td>{{ produto.nfe_numero|default:"–" }}</td>
-            <td>{{ produto.codigo_barras }}</td>
+            <td class="codigo-barras-cell">{{ produto.codigo_barras }}</td>
             <td>{{ produto.lote }}</td>
             <td class="text-start">{{ produto.descricao }}</td>
             <td>{{ produto.fornecedor.nome }}</td>
-            <td style="min-width:150px;">
-              {% if produto.area %}{{ produto.area.nome }}{% else %}&ndash;{% endif %}
-            </td>
+            <td class="area-cell" style="min-width:150px;">{% if produto.area %}{{ produto.area.nome }}{% else %}&ndash;{% endif %}</td>
             <td>{{ produto.validade|date:"d/m/Y" }}</td>
             <td>{{ produto.quantidade_inicial }}</td>
             <td>{{ produto.estoque_real }}</td>
             <td>{{ produto.estoque_reservado }}</td>
-            <td>
+            <td class="disponivel-cell">
               {{ produto.estoque_disponivel_projetado }}
               {% if produto.estoque_baixo %}
                 <span class="badge bg-danger ms-1" style="font-size:.75rem;padding:4px 8px;border-radius:8px;">
@@ -151,7 +125,8 @@
                   <a href="{% url 'editar_produto' produto.id %}" class="btn btn-sm btn-outline-primary" title="Editar">
                     <i class="bi bi-pencil"></i>
                   </a>
-                  <a href="{% url 'deletar_produto' produto.id %}" class="btn btn-sm btn-outline-danger" title="Excluir" onclick="return confirm('Deseja excluir este produto?')">
+                  <a href="{% url 'deletar_produto' produto.id %}" class="btn btn-sm btn-outline-danger" title="Excluir"
+                     onclick="return confirm('Deseja excluir este produto?')">
                     <i class="bi bi-trash"></i>
                   </a>
                 </div>
@@ -172,9 +147,7 @@
   {% if user.papel != 'operador' %}
     <div class="text-end mt-3">
       <strong>Total de produtos:</strong> {{ total_produtos }}<br>
-      {% if total_filtrados != total_produtos %}
-        <strong>Exibidos:</strong> {{ total_filtrados }}
-      {% endif %}
+      {% if total_filtrados != total_produtos %}<strong>Exibidos:</strong> {{ total_filtrados }}{% endif %}
     </div>
 
     {{ areas|json_script:"json_areas" }}
@@ -184,7 +157,6 @@
       document.getElementById('select-all').addEventListener('change', function(){
         document.querySelectorAll('.select-row').forEach(cb => cb.checked = this.checked);
       });
-
       document.getElementById('delete-selected').addEventListener('click', () => {
         const ids = Array.from(document.querySelectorAll('.select-row:checked')).map(cb => cb.value);
         if (!ids.length) return alert('Selecione ao menos um produto.');
@@ -215,13 +187,13 @@
       function salvarLinha(btn) {
         const tr = btn.closest('tr');
         const dados = {
-          codigo_barras: tr.querySelector('.codigo-barras').value,
-          descricao:     tr.querySelector('.descricao').value,
-          fornecedor:    tr.querySelector('.fornecedor').value,
-          area:          tr.querySelector('.area').value,
-          validade:      tr.querySelector('.validade').value,
-          quantidade:    tr.querySelector('.quantidade').value,
-          preco_unitario:tr.querySelector('.preco').value,
+          codigo_barras:  tr.querySelector('.codigo-barras').value,
+          descricao:      tr.querySelector('.descricao').value,
+          fornecedor:     tr.querySelector('.fornecedor').value,
+          area:           tr.querySelector('.area').value,
+          validade:       tr.querySelector('.validade').value,
+          quantidade:     tr.querySelector('.quantidade').value,
+          preco_unitario: tr.querySelector('.preco').value,
         };
         fetch("{% url 'salvar_produto_inline' %}", {
           method: 'POST',
@@ -235,6 +207,7 @@
       function adicionarLinhaProduto() {
         const AREAS = JSON.parse(document.getElementById('json_areas').textContent);
         const FORNECEDORES = JSON.parse(document.getElementById('json_fornecedores').textContent);
+        const configs = JSON.parse(document.getElementById('json_area_configs').textContent);
 
         let selF = '<select name="fornecedor" class="form-select fornecedor">';
         FORNECEDORES.forEach(f => selF += `<option value="${f.id}">${f.nome}</option>`);
@@ -272,6 +245,31 @@
         `;
         tbody.prepend(tr);
         tr.querySelector('.codigo-barras').focus();
+
+        // Recalcula budgets por código + área
+        setTimeout(() => {
+          const rows = Array.from(tbody.querySelectorAll('tr')).filter(r => r.querySelector('.codigo-barras-cell'));
+          const groups = {};
+          rows.forEach(r => {
+            const code = r.querySelector('.codigo-barras-cell').textContent.trim();
+            const area = r.querySelector('.area-cell').textContent.trim();
+            const avail = parseInt(r.querySelector('.disponivel-cell').childNodes[0].textContent) || 0;
+            const key = code + '|' + area;
+            groups[key] = (groups[key] || 0) + avail;
+          });
+          rows.forEach(r => {
+            const code = r.querySelector('.codigo-barras-cell').textContent.trim();
+            const area = r.querySelector('.area-cell').textContent.trim();
+            const sum = groups[code + '|' + area] || 0;
+            const min = configs[area] || 0;
+            if (sum < min) {
+              const span = document.createElement('span');
+              span.className = 'badge bg-warning ms-1';
+              span.textContent = `Budget Baixo (${sum}/${min})`;
+              r.querySelector('.disponivel-cell').appendChild(span);
+            }
+          });
+        }, 100);
       }
     </script>
   {% endif %}
