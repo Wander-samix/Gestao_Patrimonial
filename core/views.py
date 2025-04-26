@@ -1054,21 +1054,19 @@ def lista_logs(request):
 @login_required
 @transaction.atomic
 def novo_pedido(request):
-    # sempre passar as áreas no contexto, tanto em GET quanto em POST
+    # monta áreas e mínimos
     if request.user.papel in ['admin', 'tecnico']:
         areas = Area.objects.all()
     else:
         areas = request.user.areas.all()
-
-    # dicionário de mínimos por área, para o JS de budget baixo
-    area_minimos = { a.id: a.estoque_minimo for a in areas }
+    area_minimos = {a.id: a.estoque_minimo for a in areas}
 
     if request.method == "POST":
-        # 1) Gera código único
-        ultimo_id = Pedido.objects.aggregate(Max("id"))["id__max"] or 0
-        codigo = f"PD{str(ultimo_id + 1).zfill(5)}"
+        # 1) Gera código
+        ultimo = Pedido.objects.aggregate(Max("id"))["id__max"] or 0
+        codigo = f"PD{str(ultimo + 1).zfill(5)}"
 
-        # 2) Define status inicial
+        # 2) Status e aprovação
         if request.user.papel in ["admin", "tecnico"]:
             status_inicial = "aprovado"
             aprovado_por = request.user
@@ -1078,7 +1076,7 @@ def novo_pedido(request):
             aprovado_por = None
             data_aprovacao = None
 
-        # 3) Cria o pedido mestre
+        # 3) Cria o pedido
         data_necessaria_pedido = request.POST.get('data_necessaria') or None
         pedido = Pedido.objects.create(
             codigo=codigo,
@@ -1090,12 +1088,12 @@ def novo_pedido(request):
         )
 
         hoje = now().date()
-        # 4) Pega todas as linhas do formulário
         area_ids    = request.POST.getlist('area_id')
         produto_ids = request.POST.getlist('produto_id')
         quantidades = request.POST.getlist('quantidade')
         observacoes = request.POST.getlist('obs_item')
 
+        # 4) Loop sobre itens
         for area_id, prod_id, qt, obs in zip_longest(
                 area_ids, produto_ids, quantidades, observacoes, fillvalue=''):
             if not (area_id and prod_id and qt):
@@ -1107,38 +1105,36 @@ def novo_pedido(request):
                 if quantidade <= 0:
                     raise ValueError()
             except (ValueError, TypeError):
-                messages.error(request, f"Quantidade inválida para o produto ID {prod_id}.")
+                messages.error(request, f"Quantidade inválida para o produto {prod_id}.")
                 continue
 
-            # bloqueio de linha para atualização segura
+            # bloqueio para consistência
             inst = get_object_or_404(
                 Produto.objects.select_for_update(),
                 pk=int(prod_id)
             )
 
-            # verifica consistência de área
+            # confirma área
             if inst.area_id != int(area_id):
                 messages.error(
                     request,
-                    f"O produto '{inst.descricao}' não pertence à área selecionada."
+                    f"Produto {inst.descricao} não pertence à área selecionada."
                 )
-                # antes era 'raise ValueError(...)' — removido para não gerar 500
-                continue
+                continue  # removido raise para evitar 500
 
-            # busca estoque projetado
+            # obtém estoque projetado
             info = inst.estoque_info(data_limite=hoje)
             estoque_disp = info.get('disponivel', 0)
 
             if estoque_disp < quantidade:
                 messages.error(
                     request,
-                    f"Estoque insuficiente para '{inst.descricao}' (área {inst.area.nome}). "
-                    f"Disponível: {estoque_disp}, solicitado: {quantidade}."
+                    f"Estoque insuficiente para {inst.descricao} na área {inst.area.nome}. "
+                    f"Disponível: {estoque_disp}, Solicitado: {quantidade}."
                 )
-                # antes era 'raise ValueError(...)' — removido para não gerar 500
-                continue
+                continue  # removido raise para evitar 500
 
-            # grava o item do pedido
+            # grava o item
             ItemPedido.objects.create(
                 pedido=pedido,
                 produto=inst,
@@ -1147,7 +1143,7 @@ def novo_pedido(request):
                 estoque_no_pedido=estoque_disp
             )
 
-        # 5) Feedback ao usuário
+        # 5) Feedback e redirect
         if status_inicial == "aprovado":
             messages.success(request, "Pedido aprovado com sucesso!")
         else:
@@ -1155,7 +1151,7 @@ def novo_pedido(request):
 
         return redirect(reverse('lista_pedidos'))
 
-    # GET: só render do formulário
+    # GET: renderiza o formulário
     return render(request, "core/novo_pedido.html", {
         "areas": areas,
         "areas_json": json.dumps(
