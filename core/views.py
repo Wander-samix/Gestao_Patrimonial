@@ -43,7 +43,7 @@ from openpyxl.styles import Font, Alignment, PatternFill
 from openpyxl.utils import get_column_letter
 from django.db.models import OuterRef, Subquery
 from .models import SaidaProdutoPorPedido
-
+from django.urls import reverse
 
 register = template.Library()
 User = get_user_model()
