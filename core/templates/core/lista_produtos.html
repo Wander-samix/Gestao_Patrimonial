@@ -63,7 +63,7 @@
       background-color: black;
       color: white;
     }
-  
+
     /* Fixa a primeira coluna do cabeçalho */
     .table thead th:first-child {
       position: sticky;
@@ -76,12 +76,12 @@
       right: 0;
       z-index: 4;
     }
-  
+
     /* Fixa a primeira coluna do corpo, mas com fundo padrão */
     .table tbody td:first-child {
       position: sticky;
       left: 0;
-      background-color: white; /* ou o fundo que você estiver usando */
+      background-color: white;
       z-index: 2;
     }
     /* Fixa a última coluna do corpo, mas com fundo padrão */
@@ -92,8 +92,6 @@
       z-index: 2;
     }
   </style>
-  
-  
 
   <!-- tabela de produtos -->
   <div class="table-responsive" style="margin:0 -1.25rem; width:calc(100% + 2.5rem);">
@@ -104,20 +102,20 @@
             <th style="width:2rem;"><input type="checkbox" id="select-all"></th>
           {% endif %}
           <th style="width:2rem;">#</th>
-          <th>NFe Nº</th>
-          <th>Código de Barras</th>
+          <th>NFe Nº</th>
+          <th>Código de Barras</th>
           <th>Lote</th>
           <th>Descrição</th>
           <th>Fornecedor</th>
           <th style="min-width:150px;">Área</th>
           <th>Validade</th>
           <th>Qtd.</th>
-          <th>Estoque Real</th>
+          <th>Estoque Real</th>
           <th>Reservado</th>
           <th>Disponível</th>
-          <th>Preço Unit.</th>
+          <th>Preço Unit.</th>
           <th>Usuário</th>
-          <th>Data/Hora Cadastro</th>
+          <th>Data/Hora Cadastro</th>
           {% if user.papel != 'operador' %}
             <th style="width:6rem;">Ações</th>
           {% endif %}
@@ -151,7 +149,7 @@
                 </span>
               {% endif %}
             </td>
-            <td>R$ {{ produto.preco_unitario|floatformat:2 }}</td>
+            <td>R$ {{ produto.preco_unitario|floatformat:2 }}</td>
             <td>{{ produto.criado_por.username|default:"–" }}</td>
             <td>{{ produto.criado_em|date:"d/m/Y H:i" }}</td>
             {% if user.papel != 'operador' %}
