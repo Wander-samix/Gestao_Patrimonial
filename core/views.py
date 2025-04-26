@@ -43,7 +43,7 @@ from openpyxl.styles import Font, Alignment, PatternFill
 from openpyxl.utils import get_column_letter
 from django.db.models import OuterRef, Subquery
 from .models import SaidaProdutoPorPedido
-from django.urls import reverse
+
 
 register = template.Library()
 User = get_user_model()
@@ -1054,19 +1054,12 @@ def lista_logs(request):
 @login_required
 @transaction.atomic
 def novo_pedido(request):
-    # monta áreas e mínimos
-    if request.user.papel in ['admin', 'tecnico']:
-        areas = Area.objects.all()
-    else:
-        areas = request.user.areas.all()
-    area_minimos = {a.id: a.estoque_minimo for a in areas}
-
     if request.method == "POST":
-        # 1) Gera código
-        ultimo = Pedido.objects.aggregate(Max("id"))["id__max"] or 0
-        codigo = f"PD{str(ultimo + 1).zfill(5)}"
+        # 1) Código
+        ultimo_id = Pedido.objects.aggregate(Max("id"))["id__max"] or 0
+        codigo = f"PD{str(ultimo_id + 1).zfill(5)}"
 
-        # 2) Status e aprovação
+        # 2) Status inicial e quem aprova
         if request.user.papel in ["admin", "tecnico"]:
             status_inicial = "aprovado"
             aprovado_por = request.user
@@ -1076,7 +1069,7 @@ def novo_pedido(request):
             aprovado_por = None
             data_aprovacao = None
 
-        # 3) Cria o pedido
+        # 3) Cria o Pedido
         data_necessaria_pedido = request.POST.get('data_necessaria') or None
         pedido = Pedido.objects.create(
             codigo=codigo,
@@ -1087,15 +1080,14 @@ def novo_pedido(request):
             data_necessaria=data_necessaria_pedido,
         )
 
+        # 4) Laço sobre os itens vindos do form
         hoje = now().date()
         area_ids    = request.POST.getlist('area_id')
         produto_ids = request.POST.getlist('produto_id')
         quantidades = request.POST.getlist('quantidade')
         observacoes = request.POST.getlist('obs_item')
 
-        # 4) Loop sobre itens
-        for area_id, prod_id, qt, obs in zip_longest(
-                area_ids, produto_ids, quantidades, observacoes, fillvalue=''):
+        for area_id, prod_id, qt, obs in zip_longest(area_ids, produto_ids, quantidades, observacoes, fillvalue=''):
             if not (area_id and prod_id and qt):
                 continue
 
@@ -1120,11 +1112,11 @@ def novo_pedido(request):
                     request,
                     f"Produto {inst.descricao} não pertence à área selecionada."
                 )
-                continue  # removido raise para evitar 500
+                raise ValueError("Área inconsistente com o produto")
 
-            # obtém estoque projetado
+            # usa estoque_info para obter o disponível projetado
             info = inst.estoque_info(data_limite=hoje)
-            estoque_disp = info.get('disponivel', 0)
+            estoque_disp = info['disponivel']
 
             if estoque_disp < quantidade:
                 messages.error(
@@ -1132,9 +1124,9 @@ def novo_pedido(request):
                     f"Estoque insuficiente para {inst.descricao} na área {inst.area.nome}. "
                     f"Disponível: {estoque_disp}, Solicitado: {quantidade}."
                 )
-                continue  # removido raise para evitar 500
+                raise ValueError("Estoque insuficiente")
 
-            # grava o item
+            # cria o ItemPedido, guardando o estoque no momento
             ItemPedido.objects.create(
                 pedido=pedido,
                 produto=inst,
@@ -1143,22 +1135,26 @@ def novo_pedido(request):
                 estoque_no_pedido=estoque_disp
             )
 
-        # 5) Feedback e redirect
+        # 5) Feedback
         if status_inicial == "aprovado":
             messages.success(request, "Pedido aprovado com sucesso!")
         else:
             messages.success(request, "Pedido registrado com sucesso! Aguardando aprovação.")
 
-        return redirect(reverse('lista_pedidos'))
+        return redirect("lista_pedidos")
 
-    # GET: renderiza o formulário
+    # GET: render do form
+    if request.user.papel in ['admin', 'tecnico']:
+        areas = Area.objects.all()
+    else:
+        areas = request.user.areas.all()
+
     return render(request, "core/novo_pedido.html", {
         "areas": areas,
         "areas_json": json.dumps(
             list(areas.values("id", "nome")),
             cls=DjangoJSONEncoder
         ),
-        "area_minimos": area_minimos,
     })
 
 @login_required
