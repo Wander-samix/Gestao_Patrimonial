@@ -46,7 +46,8 @@
 
     <div class="row mt-2">
       <div class="col-12 d-flex justify-content-end gap-2">
-        <a href="{% url 'exportar_produtos_excel' %}?busca={{ busca }}&filtro_area={{ filtro_area }}&filtro_status={{ filtro_status }}&estoque_baixo={{ request.GET.estoque_baixo }}"
+        <a href="{% url 'exportar_produtos_excel' %}
+?busca={{ busca }}&filtro_area={{ filtro_area }}&filtro_status={{ filtro_status }}&estoque_baixo={{ request.GET.estoque_baixo }}"
            class="btn btn-outline-success">Exportar Excel</a>
         {% if user.papel != 'operador' %}
           <button id="delete-selected" class="btn btn-outline-danger">Excluir Selecionados</button>
@@ -63,33 +64,21 @@
       background-color: black;
       color: white;
     }
-
-    /* Fixa a primeira coluna do cabeçalho */
-    .table thead th:first-child {
-      position: sticky;
-      left: 0;
-      z-index: 4;
-    }
-    /* Fixa a última coluna do cabeçalho */
-    .table thead th:last-child {
-      position: sticky;
-      right: 0;
-      z-index: 4;
-    }
-
-    /* Fixa a primeira coluna do corpo, mas com fundo padrão */
+    /* Fixa colunas */
+    .table thead th:first-child,
     .table tbody td:first-child {
-      position: sticky;
-      left: 0;
-      background-color: white;
-      z-index: 2;
+      position: sticky; left: 0; z-index: 4; background: white;
     }
-    /* Fixa a última coluna do corpo, mas com fundo padrão */
+    .table thead th:last-child,
     .table tbody td:last-child {
-      position: sticky;
-      right: 0;
-      background-color: white;
-      z-index: 2;
+      position: sticky; right: 0; z-index: 4; background: white;
+    }
+
+    /* Inline row auto-fit */
+    tr.auto-fit input.form-control-sm,
+    tr.auto-fit select.form-select {
+      width: auto !important;
+      min-width: 3ch;
     }
   </style>
 
@@ -257,6 +246,7 @@
 
         const tbody = document.querySelector('table tbody');
         const tr = document.createElement('tr');
+        tr.classList.add('auto-fit');  // habilita width:auto nos campos
         tr.innerHTML = `
           <td><input type="checkbox" disabled></td>
           <td>–</td>
