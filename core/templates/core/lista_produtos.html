@@ -29,8 +29,8 @@
         <option value="inativo" {% if filtro_status == 'inativo' %}selected{% endif %}>Inativo</option>
       </select>
     </div>
-    <div class="col-12 col-md-2 mt-2">
-      <div class="form-check">
+    <div class="col-12 col-md-2">
+      <div class="form-check mt-md-0 mt-2">
         <input class="form-check-input" type="checkbox"
                name="estoque_baixo" id="checkEstoqueBaixo" value="1"
                {% if estoque_baixo_aplicado %}checked{% endif %}>
@@ -39,20 +39,32 @@
         </label>
       </div>
     </div>
-    <div class="col-12 col-md-3">
-      <button type="submit" class="btn btn-primary">Filtrar</button>
-      <a href="{% url 'lista_produtos' %}" class="btn btn-outline-secondary">Limpar</a>
+    <div class="col-6 col-md-1">
+      <button type="submit" class="btn btn-primary w-100">Filtrar</button>
+    </div>
+    <div class="col-6 col-md-1">
+      <a href="{% url 'lista_produtos' %}" class="btn btn-outline-secondary w-100">Limpar</a>
     </div>
 
     <div class="row mt-2">
-      <div class="col-12 d-flex justify-content-end gap-2">
-        <a href="{% url 'exportar_produtos_excel' %}?busca={{ busca }}&filtro_area={{ filtro_area }}&filtro_status={{ filtro_status }}&estoque_baixo={{ request.GET.estoque_baixo }}"
-           class="btn btn-outline-success">Exportar Excel</a>
-        {% if user.papel != 'operador' %}
-          <button id="delete-selected" class="btn btn-outline-danger">Excluir Selecionados</button>
-          <a href="{% url 'upload_nfe' %}" class="btn btn-outline-primary">Importar NFe</a>
-          <a href="#" class="btn btn-success" onclick="adicionarLinhaProduto()">+ Produto</a>
-        {% endif %}
+      <div class="col-12">
+        <div class="d-flex flex-wrap justify-content-end gap-2">
+          <div class="flex-grow-1 flex-md-grow-0">
+            <a href="{% url 'exportar_produtos_excel' %}?busca={{ busca }}&filtro_area={{ filtro_area }}&filtro_status={{ filtro_status }}&estoque_baixo={{ request.GET.estoque_baixo }}"
+               class="btn btn-outline-success w-100 w-md-auto">Exportar Excel</a>
+          </div>
+          {% if user.papel != 'operador' %}
+            <div class="flex-grow-1 flex-md-grow-0">
+              <button id="delete-selected" class="btn btn-outline-danger w-100 w-md-auto">Excluir Selecionados</button>
+            </div>
+            <div class="flex-grow-1 flex-md-grow-0">
+              <a href="{% url 'upload_nfe' %}" class="btn btn-outline-primary w-100 w-md-auto">Importar NFe</a>
+            </div>
+            <div class="flex-grow-1 flex-md-grow-0">
+              <a href="#" class="btn btn-success w-100 w-md-auto" onclick="adicionarLinhaProduto()">+ Produto</a>
+            </div>
+          {% endif %}
+        </div>
       </div>
     </div>
   </form>
@@ -63,37 +75,16 @@
       background-color: black;
       color: white;
     }
-  
-    /* Fixa a primeira coluna do cabeçalho */
-    .table thead th:first-child {
-      position: sticky;
-      left: 0;
-      z-index: 4;
-    }
-    /* Fixa a última coluna do cabeçalho */
-    .table thead th:last-child {
-      position: sticky;
-      right: 0;
-      z-index: 4;
-    }
-  
-    /* Fixa a primeira coluna do corpo, mas com fundo padrão */
+    /* Fixa colunas */
+    .table thead th:first-child,
     .table tbody td:first-child {
-      position: sticky;
-      left: 0;
-      background-color: white; /* ou o fundo que você estiver usando */
-      z-index: 2;
+      position: sticky; left: 0; z-index: 4; background: white;
     }
-    /* Fixa a última coluna do corpo, mas com fundo padrão */
+    .table thead th:last-child,
     .table tbody td:last-child {
-      position: sticky;
-      right: 0;
-      background-color: white;
-      z-index: 2;
+      position: sticky; right: 0; z-index: 4; background: white;
     }
   </style>
-  
-  
 
   <!-- tabela de produtos -->
   <div class="table-responsive" style="margin:0 -1.25rem; width:calc(100% + 2.5rem);">
@@ -104,20 +95,20 @@
             <th style="width:2rem;"><input type="checkbox" id="select-all"></th>
           {% endif %}
           <th style="width:2rem;">#</th>
-          <th>NFe Nº</th>
-          <th>Código de Barras</th>
+          <th>NFe Nº</th>
+          <th>Código de Barras</th>
           <th>Lote</th>
           <th>Descrição</th>
           <th>Fornecedor</th>
           <th style="min-width:150px;">Área</th>
           <th>Validade</th>
           <th>Qtd.</th>
-          <th>Estoque Real</th>
+          <th>Estoque Real</th>
           <th>Reservado</th>
           <th>Disponível</th>
-          <th>Preço Unit.</th>
+          <th>Preço Unit.</th>
           <th>Usuário</th>
-          <th>Data/Hora Cadastro</th>
+          <th>Data/Hora Cadastro</th>
           {% if user.papel != 'operador' %}
             <th style="width:6rem;">Ações</th>
           {% endif %}
@@ -151,19 +142,16 @@
                 </span>
               {% endif %}
             </td>
-            <td>R$ {{ produto.preco_unitario|floatformat:2 }}</td>
+            <td>R$ {{ produto.preco_unitario|floatformat:2 }}</td>
             <td>{{ produto.criado_por.username|default:"–" }}</td>
             <td>{{ produto.criado_em|date:"d/m/Y H:i" }}</td>
             {% if user.papel != 'operador' %}
               <td>
                 <div class="d-flex gap-1 justify-content-center">
-                  <a href="{% url 'editar_produto' produto.id %}"
-                     class="btn btn-sm btn-outline-primary" title="Editar">
+                  <a href="{% url 'editar_produto' produto.id %}" class="btn btn-sm btn-outline-primary" title="Editar">
                     <i class="bi bi-pencil"></i>
                   </a>
-                  <a href="{% url 'deletar_produto' produto.id %}"
-                     class="btn btn-sm btn-outline-danger" title="Excluir"
-                     onclick="return confirm('Deseja excluir este produto?')">
+                  <a href="{% url 'deletar_produto' produto.id %}" class="btn btn-sm btn-outline-danger" title="Excluir" onclick="return confirm('Deseja excluir este produto?')">
                     <i class="bi bi-trash"></i>
                   </a>
                 </div>
@@ -189,7 +177,6 @@
       {% endif %}
     </div>
 
-    {# JSON para scripts de adição inline #}
     {{ areas|json_script:"json_areas" }}
     {{ fornecedores|json_script:"json_fornecedores" }}
 
@@ -211,7 +198,7 @@
         .then(j => j.sucesso ? location.reload() : alert('Erro: ' + j.erro));
       });
 
-      function buscarDescricao(e, input){
+      function buscarDescricao(e, input) {
         if (e.key === 'Enter') {
           e.preventDefault();
           const cod = input.value.trim();
@@ -225,16 +212,16 @@
         }
       }
 
-      function salvarLinha(btn){
+      function salvarLinha(btn) {
         const tr = btn.closest('tr');
         const dados = {
-          codigo_barras:  tr.querySelector('.codigo-barras').value,
-          descricao:      tr.querySelector('.descricao').value,
-          fornecedor:     tr.querySelector('.fornecedor').value,
-          area:           tr.querySelector('.area').value,
-          validade:       tr.querySelector('.validade').value,
-          quantidade:     tr.querySelector('.quantidade').value,
-          preco_unitario: tr.querySelector('.preco').value,
+          codigo_barras: tr.querySelector('.codigo-barras').value,
+          descricao:     tr.querySelector('.descricao').value,
+          fornecedor:    tr.querySelector('.fornecedor').value,
+          area:          tr.querySelector('.area').value,
+          validade:      tr.querySelector('.validade').value,
+          quantidade:    tr.querySelector('.quantidade').value,
+          preco_unitario:tr.querySelector('.preco').value,
         };
         fetch("{% url 'salvar_produto_inline' %}", {
           method: 'POST',
@@ -245,7 +232,7 @@
         .then(j => j.sucesso ? location.reload() : alert('Erro:' + j.erro));
       }
 
-      function adicionarLinhaProduto(){
+      function adicionarLinhaProduto() {
         const AREAS = JSON.parse(document.getElementById('json_areas').textContent);
         const FORNECEDORES = JSON.parse(document.getElementById('json_fornecedores').textContent);
 
@@ -263,8 +250,7 @@
           <td><input type="checkbox" disabled></td>
           <td>–</td>
           <td>–</td>
-          <td><input type="text" class="form-control form-control-sm codigo-barras"
-                     placeholder="Escaneie…" onkeydown="buscarDescricao(event,this)"></td>
+          <td><input type="text" class="form-control form-control-sm codigo-barras" placeholder="Escaneie…" onkeydown="buscarDescricao(event,this)"></td>
           <td><input type="text" class="form-control form-control-sm lote" readonly></td>
           <td><input type="text" class="form-control form-control-sm descricao"></td>
           <td>${selF}</td>
