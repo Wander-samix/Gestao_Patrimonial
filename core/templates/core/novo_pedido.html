@@ -29,22 +29,22 @@
       <tbody id="itensPedido" class="text-center">
         <tr>
           <td>
-            <select name="area_id" class="form-select area-select" onchange="carregarProdutos(this)" required>
-              <option value="" disabled selected>Selecione Área</option>
+            <select name="area_id" class="form-select area-select" onchange="carregarProdutos(this)">
+              <option value="">Selecione Área</option>
               {% for a in areas %}
                 <option value="{{ a.id }}">{{ a.nome }}</option>
               {% endfor %}
             </select>
           </td>
           <td>
-            <select name="produto_id" class="form-select produto-select" onchange="atualizarInfo(this)" disabled required>
-              <option value="" disabled selected>–</option>
+            <select name="produto_id" class="form-select text-center produto-select" onchange="atualizarInfo(this)" disabled>
+              <option value="">–</option>
             </select>
             <input type="hidden" name="codigo_barras" class="codigo-barras-input">
           </td>
           <td class="total-estoque">–</td>
           <td><input type="date" name="validade" class="form-control text-center validade-input" readonly></td>
-          <td><input type="number" name="quantidade" class="form-control text-center quantidade-input" value="1" min="1" disabled required></td>
+          <td><input type="number" name="quantidade" class="form-control text-center quantidade-input" value="1" min="1" disabled></td>
           <td><input type="date" name="data_necessaria" class="form-control text-center" required></td>
           <td><input type="text" name="obs_item" class="form-control text-center" maxlength="255" placeholder="—"></td>
           <td>
@@ -55,9 +55,7 @@
     </table>
   
     <div class="mb-3 text-end">
-      <button type="button" class="btn btn-link p-0" onclick="addRow(); return false;">
-        + Mais Itens
-      </button>
+      <a href="#" onclick="addRow();return false;">+ Mais Itens</a>
     </div>
   
     <div class="d-flex justify-content-end gap-2">
@@ -74,18 +72,15 @@ const ajaxUrl = "{% url 'produtos_por_area' 0 %}";
 function addRow() {
   const tbody = document.getElementById('itensPedido');
   const nova = tbody.rows[0].cloneNode(true);
-  // reset fields
   nova.querySelector('.area-select').value = '';
-  const prodSel = nova.querySelector('.produto-select');
-  prodSel.innerHTML = '<option value="" disabled selected>–</option>';
-  prodSel.disabled = true;
+  const ps = nova.querySelector('.produto-select');
+  ps.innerHTML = '<option value="">–</option>';
+  ps.disabled = true;
   nova.querySelector('.codigo-barras-input').value = '';
   nova.querySelector('.total-estoque').innerText = '–';
   nova.querySelector('.validade-input').value = '';
   const qi = nova.querySelector('.quantidade-input');
-  qi.value = 1;
-  qi.disabled = true;
-  qi.classList.remove('is-invalid');
+  qi.value = 1; qi.disabled = true; qi.classList.remove('is-invalid');
   nova.querySelector('input[name="data_necessaria"]').value = '';
   nova.querySelector('input[name="obs_item"]').value = '';
   tbody.appendChild(nova);
@@ -108,14 +103,14 @@ function carregarProdutos(select) {
   qtyInput.disabled = true;
 
   if (!areaId) {
-    prodSel.innerHTML = '<option value="" disabled selected>–</option>';
+    prodSel.innerHTML = '<option value="">–</option>';
     return;
   }
 
   fetch(ajaxUrl.replace('/0/', `/${areaId}/`))
     .then(r => r.json())
     .then(lista => {
-      prodSel.innerHTML = '<option value="" disabled selected>Selecione Produto</option>';
+      prodSel.innerHTML = '<option value="">Selecione Produto</option>';
       lista.forEach(p => {
         const opt = new Option(p.descricao, p.id);
         opt.dataset.estoque = p.disponivel || 0;
@@ -125,21 +120,20 @@ function carregarProdutos(select) {
       });
       prodSel.disabled = false;
     })
-    .catch(() => prodSel.innerHTML = '<option value="" disabled selected>Erro</option>');
+    .catch(() => prodSel.innerHTML = '<option value="">Erro</option>');
 }
 
 function atualizarInfo(select) {
   const tr = select.closest('tr');
   const area = tr.querySelector('.area-select').value;
-  const id   = select.value;
+  const id = select.value;
   const codeInput = tr.querySelector('.codigo-barras-input');
 
-  // Prevent duplicates
   if (id) {
     document.querySelectorAll('#itensPedido tr').forEach(r => {
-      if (r !== tr
-        && r.querySelector('.area-select').value === area
-        && r.querySelector('.produto-select').value === id) {
+      if (r === tr) return;
+      if (r.querySelector('.area-select').value === area &&
+          r.querySelector('.produto-select').value === id) {
         alert('Produto já indicado. Ajuste a quantidade na linha existente.');
         r.classList.add('blink');
         setTimeout(() => r.classList.remove('blink'), 3000);
@@ -150,41 +144,43 @@ function atualizarInfo(select) {
 
   const opt = select.selectedOptions[0] || {};
   const baseStock = parseInt(opt.dataset.estoque) || 0;
-  const validade  = opt.dataset.validade || '';
-  const codigo    = opt.dataset.codigo || '';
+  const validade = opt.dataset.validade || '';
+  const codigo = opt.dataset.codigo || '';
 
-  // Calculate reserved
   let reserved = 0;
   document.querySelectorAll('#itensPedido tr').forEach(r => {
-    if (r !== tr
-      && r.querySelector('.area-select').value === area
-      && r.querySelector('.produto-select').value === id) {
-      reserved += parseInt(r.querySelector('.quantidade-input').value) || 0;
-    }
+    if (r === tr) return;
+    const a = r.querySelector('.area-select').value;
+    const prodId = r.querySelector('.produto-select').value;
+    const qty = parseInt(r.querySelector('.quantidade-input').value) || 0;
+    if (a === area && prodId === id) reserved += qty;
   });
 
   let available = baseStock - reserved;
-  available = available < 0 ? 0 : available;
+  if (available < 0) available = 0;
 
   tr.querySelector('.total-estoque').innerText = available;
   tr.querySelector('.validade-input').value = validade;
   const qtyInput = tr.querySelector('.quantidade-input');
   qtyInput.disabled = !id;
   qtyInput.max = available;
-  if (+qtyInput.value > available) qtyInput.value = available;
+  if (qtyInput.value > available) qtyInput.value = available;
   qtyInput.classList.remove('is-invalid');
+
+  codeInput.value = codigo;
 }
 
-document.addEventListener('input', e => {
+document.addEventListener('input', function(e) {
   if (e.target.classList.contains('quantidade-input')) {
     const row = e.target.closest('tr');
-    const estoque = parseInt(row.querySelector('.total-estoque').textContent) || 0;
-    const qtd     = parseInt(e.target.value) || 0;
-    e.target.classList.toggle('is-invalid', qtd > estoque);
+    const estoque = parseInt(row.querySelector('.total-estoque').textContent || 0);
+    const quantidade = parseInt(e.target.value || 0);
+    if (quantidade > estoque) e.target.classList.add('is-invalid');
+    else e.target.classList.remove('is-invalid');
   }
 });
 
-document.querySelector('form').addEventListener('submit', e => {
+document.querySelector('form').addEventListener('submit', function(e) {
   const invalids = document.querySelectorAll('.quantidade-input.is-invalid');
   if (invalids.length) {
     e.preventDefault();
