@@ -11,8 +11,12 @@ import dj_database_url
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Segurança
-SECRET_KEY = os.environ['SECRET_KEY']
-DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+# Permite fallback para desenvolvimento local se não passar variáveis de ambiente
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-local-secret-key')
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+
+# Ao rodar localmente, aceita localhost e 127.0.0.1 por padrão.
+# Para desenvolvimento mais amplo, pode usar ['*']
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 # Configuração correta dos arquivos estáticos
@@ -21,8 +25,12 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # Garante que a pasta static/ exista
-if not os.path.exists(BASE_DIR / "static"):
-    os.makedirs(BASE_DIR / "static")
+os.makedirs(BASE_DIR / "static", exist_ok=True)
+
+# Se desejar servir arquivos de mídia (uploads), descomente:
+# MEDIA_URL = '/media/'
+# MEDIA_ROOT = BASE_DIR / 'media'
+# os.makedirs(MEDIA_ROOT, exist_ok=True)
 
 # Configuração dos templates
 TEMPLATES = [
@@ -53,7 +61,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    # Apps do projeto
+    # App principal
     'core',
 ]
 
@@ -70,32 +78,32 @@ MIDDLEWARE = [
 ROOT_URLCONF = 'gestao_patrimonial.urls'
 WSGI_APPLICATION = 'gestao_patrimonial.wsgi.application'
 
-# Configuração do Banco de Dados PostgreSQL local (comentada)
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': 'gestao_utf8',  # Nome do banco
-#         'USER': 'postgres',     # Usuário correto
-#         'PASSWORD': '123',      # Substitua pela senha correta
-#         'HOST': 'localhost',    # Certifique-se de que está correto
-#         'PORT': '5432',
-#         'OPTIONS': {
-#             'client_encoding': 'UTF8',
-#         },
-#     }
-# }
-
-# Banco de Dados via DATABASE_URL (Render, Heroku, .env, etc.)
+# Banco de Dados PostgreSQL local (padrão)
 DATABASES = {
-    'default': dj_database_url.parse(
-        os.environ.get(
-            'DATABASE_URL',
-            'postgres://postgres:123@localhost:5432/gestao_utf8'  # fallback local
-        ),
-        conn_max_age=600,
-        ssl_require=bool(os.environ.get('DATABASE_SSL', False)),
-    )
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('DB_NAME', 'gestao_utf8'),
+        'USER': os.environ.get('DB_USER', 'postgres'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', '123'),
+        'HOST': os.environ.get('DB_HOST', 'localhost'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
+        'OPTIONS': {
+            'client_encoding': 'UTF8',
+        },
+    }
 }
+
+# Se preferir usar DATABASE_URL (Heroku, .env, Render etc.), descomente:
+# DATABASES = {
+#     'default': dj_database_url.parse(
+#         os.environ.get(
+#             'DATABASE_URL',
+#             'postgres://postgres:123@localhost:5432/gestao_utf8'
+#         ),
+#         conn_max_age=600,
+#         ssl_require=bool(os.environ.get('DATABASE_SSL', False)),
+#     )
+# }
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -107,5 +115,5 @@ LOGIN_URL = 'login'
 # Modelo de usuário customizado
 AUTH_USER_MODEL = 'core.Usuario'
 
-# Chave da API Cosmos (pode também ser movida para env se desejar)
-COSMOS_API_KEY = '3fTpL-M47SqFLJ8qq1RAPg'
+# API Cosmos (recomendo também mover para variável de ambiente)
+COSMOS_API_KEY = os.environ.get('COSMOS_API_KEY', '3fTpL-M47SqFLJ8qq1RAPg')
