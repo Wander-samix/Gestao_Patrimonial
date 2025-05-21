@@ -1,10 +1,12 @@
+# infrastructure/repositories/django_item_pedido_repository.py
+
 from typing import List, Optional
-from core.domain.entities.item_pedido import Item_pedido
-from core.domain.repositories.item_pedido_repository import IItem_pedidoRepository
+from core.domain.entities.item_pedido import ItemPedido
+from core.domain.repositories.item_pedido_repository import IItemPedidoRepository
 from core.models import ItemPedido as ItemPedidoModel
 
-class DjangoItem_pedidoRepository(IItem_pedidoRepository):
-    def save(self, obj: Item_pedido) -> Item_pedido:
+class DjangoItemPedidoRepository(IItemPedidoRepository):
+    def save(self, obj: ItemPedido) -> ItemPedido:
         """
         Se obj.id existir, atualiza; caso contrário, cria novo registro.
         """
@@ -29,7 +31,7 @@ class DjangoItem_pedidoRepository(IItem_pedidoRepository):
                 observacao        = obj.observacao,
                 estoque_no_pedido = obj.estoque_no_pedido
             )
-        return Item_pedido(
+        return ItemPedido(
             id=model.id,
             pedido_id=model.pedido_id,
             produto_id=model.produto_id,
@@ -39,13 +41,13 @@ class DjangoItem_pedidoRepository(IItem_pedidoRepository):
             estoque_no_pedido=model.estoque_no_pedido
         )
 
-    def find_by_id(self, id: int) -> Optional[Item_pedido]:
+    def find_by_id(self, id: int) -> Optional[ItemPedido]:
         """
-        Busca Item_pedido por PK; retorna None se não existir.
+        Busca ItemPedido por PK; retorna None se não existir.
         """
         try:
             m = ItemPedidoModel.objects.get(pk=id)
-            return Item_pedido(
+            return ItemPedido(
                 id=m.id,
                 pedido_id=m.pedido_id,
                 produto_id=m.produto_id,
@@ -57,12 +59,12 @@ class DjangoItem_pedidoRepository(IItem_pedidoRepository):
         except ItemPedidoModel.DoesNotExist:
             return None
 
-    def list_all(self) -> List[Item_pedido]:
+    def list_all(self) -> List[ItemPedido]:
         """
-        Retorna todos os Item_pedido como entidades de domínio.
+        Retorna todos os ItemPedido como entidades de domínio.
         """
         return [
-            Item_pedido(
+            ItemPedido(
                 id=m.id,
                 pedido_id=m.pedido_id,
                 produto_id=m.produto_id,
@@ -76,6 +78,6 @@ class DjangoItem_pedidoRepository(IItem_pedidoRepository):
 
     def delete(self, id: int) -> None:
         """
-        Remove o Item_pedido com a PK informada.
+        Remove o ItemPedido com a PK informada.
         """
         ItemPedidoModel.objects.filter(pk=id).delete()

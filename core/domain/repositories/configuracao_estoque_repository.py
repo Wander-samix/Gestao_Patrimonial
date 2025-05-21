@@ -1,10 +1,9 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional
 from core.domain.entities.configuracao_estoque import ConfiguracaoEstoque
-from core.domain.repositories.configuracao_estoque_repository import IConfiguracaoEstoqueRepository
 from core.models import ConfiguracaoEstoque as ConfiguracaoEstoqueModel
 
-class IConfiguracaoEstoqueRepository(IConfiguracaoEstoqueRepository):
+class IConfiguracaoEstoqueRepository(ABC):
     @abstractmethod
     def save(self, obj: ConfiguracaoEstoque) -> ConfiguracaoEstoque: ...
 

@@ -4,13 +4,13 @@ import ipaddress
 
 from core.application.contracts.log_acao_service_contract import ILogAcaoService
 from core.application.dtos.log_acao_dto import CreateLogAcaoDTO, LogAcaoDTO
-from core.domain.entities.log_acao import Log_acao
-from core.domain.repositories.log_acao_repository import ILog_acaoRepository
-from infrastructure.repositories.django_log_acao_repository import DjangoLog_acaoRepository
+from core.domain.entities.log_acao import LogAcao
+from core.domain.repositories.log_acao_repository import ILogAcaoRepository
+from infrastructure.repositories.django_log_acao_repository import DjangoLogAcaoRepository
 
 class LogAcaoService(ILogAcaoService):
-    def __init__(self, repo: ILog_acaoRepository = None):
-        self.repo = repo or DjangoLog_acaoRepository()
+    def __init__(self, repo: ILogAcaoRepository = None):
+        self.repo = repo or DjangoLogAcaoRepository()
 
     def create(self, dto: CreateLogAcaoDTO) -> LogAcaoDTO:
         # usuario_id
@@ -46,7 +46,7 @@ class LogAcaoService(ILogAcaoService):
                 raise ValueError(f"'{ip}' não é um IP válido.")
 
         # monta entidade e persiste
-        log = Log_acao(
+        log = LogAcao(
             usuario_id=dto.usuario_id,
             acao=acao,
             detalhes=detalhes,

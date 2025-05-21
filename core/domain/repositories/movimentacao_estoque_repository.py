@@ -1,16 +1,16 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional
-from core.domain.entities.movimentacao_estoque import Movimentacao_estoque
+from core.domain.entities.movimentacao_estoque import MovimentacaoEstoque
 
-class IMovimentacao_estoqueRepository(ABC):
+class IMovimentacaoEstoqueRepository(ABC):
     @abstractmethod
-    def save(self, obj: Movimentacao_estoque) -> Movimentacao_estoque: ...
-
-    @abstractmethod
-    def find_by_id(self, id: int) -> Optional[Movimentacao_estoque]: ...
+    def save(self, obj: MovimentacaoEstoque) -> MovimentacaoEstoque: ...
 
     @abstractmethod
-    def list_all(self) -> List[Movimentacao_estoque]: ...
+    def find_by_id(self, id: int) -> Optional[MovimentacaoEstoque]: ...
+
+    @abstractmethod
+    def list_all(self) -> List[MovimentacaoEstoque]: ...
 
     @abstractmethod
     def delete(self, id: int) -> None: ...

@@ -1,12 +1,12 @@
 from core.application.contracts.item_pedido_service_contract import IItemPedidoService
 from core.application.dtos.item_pedido_dto import CreateItemPedidoDTO, ItemPedidoDTO
-from core.domain.repositories.item_pedido_repository import IItem_pedidoRepository
-from infrastructure.repositories.django_item_pedido_repository import DjangoItem_pedidoRepository
-from core.domain.entities.item_pedido import Item_pedido
+from core.domain.repositories.item_pedido_repository import IItemPedidoRepository
+from infrastructure.repositories.django_item_pedido_repository import DjangoItemPedidoRepository
+from core.domain.entities.item_pedido import ItemPedido
 
 class ItemPedidoService(IItemPedidoService):
-    def __init__(self, repo: IItem_pedidoRepository = None):
-        self.repo = repo or DjangoItem_pedidoRepository()
+    def __init__(self, repo: IItemPedidoRepository = None):
+        self.repo = repo or DjangoItemPedidoRepository()
 
     def create(self, dto: CreateItemPedidoDTO) -> ItemPedidoDTO:
         # Aqui reaplicamos a mesma validação do antigo CriarItem_pedidoService
@@ -33,7 +33,7 @@ class ItemPedidoService(IItemPedidoService):
             raise ValueError("Se fornecido, 'estoque_no_pedido' deve ser >= 0.")
 
         # monta entidade
-        item = Item_pedido(
+        item = ItemPedido(
             pedido_id=dto.pedido_id,
             produto_id=dto.produto_id,
             quantidade=dto.quantidade,

@@ -1,10 +1,10 @@
 from typing import List, Optional
-from core.domain.entities.log_acao import Log_acao
-from core.domain.repositories.log_acao_repository import ILog_acaoRepository
+from core.domain.entities.log_acao import LogAcao
+from core.domain.repositories.log_acao_repository import ILogAcaoRepository
 from core.models import LogAcao as LogAcaoModel
 
-class DjangoLog_acaoRepository(ILog_acaoRepository):
-    def save(self, obj: Log_acao) -> Log_acao:
+class DjangoLogAcaoRepository(ILogAcaoRepository):
+    def save(self, obj: LogAcao) -> LogAcao:
         """
         Se obj.id existir, atualiza; caso contrário, cria novo registro.
         Retorna a entidade de domínio com o id gerado/atualizado.
@@ -25,7 +25,7 @@ class DjangoLog_acaoRepository(ILog_acaoRepository):
                 data_hora=obj.data_hora,
                 ip=obj.ip
             )
-        return Log_acao(
+        return LogAcao(
             id=model.id,
             usuario_id=model.usuario_id,
             acao=model.acao,
@@ -34,13 +34,13 @@ class DjangoLog_acaoRepository(ILog_acaoRepository):
             ip=model.ip
         )
 
-    def find_by_id(self, id: int) -> Optional[Log_acao]:
+    def find_by_id(self, id: int) -> Optional[LogAcao]:
         """
-        Busca Log_acao por PK; retorna None se não existir.
+        Busca LogAcao por PK; retorna None se não existir.
         """
         try:
             m = LogAcaoModel.objects.get(pk=id)
-            return Log_acao(
+            return LogAcao(
                 id=m.id,
                 usuario_id=m.usuario_id,
                 acao=m.acao,
@@ -51,12 +51,12 @@ class DjangoLog_acaoRepository(ILog_acaoRepository):
         except LogAcaoModel.DoesNotExist:
             return None
 
-    def list_all(self) -> List[Log_acao]:
+    def list_all(self) -> List[LogAcao]:
         """
         Retorna todos os logs de ação como entidades de domínio.
         """
         return [
-            Log_acao(
+            LogAcao(
                 id=m.id,
                 usuario_id=m.usuario_id,
                 acao=m.acao,

@@ -7,13 +7,13 @@ from core.application.dtos.movimentacao_estoque_dto import (
     CreateMovimentacaoEstoqueDTO,
     MovimentacaoEstoqueDTO,
 )
-from core.domain.entities.movimentacao_estoque import Movimentacao_estoque
-from core.domain.repositories.movimentacao_estoque_repository import IMovimentacao_estoqueRepository
-from infrastructure.repositories.django_movimentacao_estoque_repository import DjangoMovimentacao_estoqueRepository
+from core.domain.entities.movimentacao_estoque import MovimentacaoEstoque
+from core.domain.repositories.movimentacao_estoque_repository import IMovimentacaoEstoqueRepository
+from infrastructure.repositories.django_movimentacao_estoque_repository import DjangoMovimentacaoEstoqueRepository
 
 class MovimentacaoEstoqueService(IMovimentacaoEstoqueService):
-    def __init__(self, repo: IMovimentacao_estoqueRepository = None):
-        self.repo = repo or DjangoMovimentacao_estoqueRepository()
+    def __init__(self, repo: IMovimentacaoEstoqueRepository = None):
+        self.repo = repo or DjangoMovimentacaoEstoqueRepository()
 
     def create(self, dto: CreateMovimentacaoEstoqueDTO) -> MovimentacaoEstoqueDTO:
         # tipo

@@ -1,9 +1,9 @@
 from typing import List, Optional
 from core.domain.entities.configuracao_estoque import ConfiguracaoEstoque
-from core.domain.repositories.configuracao_estoque_repository import IConfiguracao_estoqueRepository
+from core.domain.repositories.configuracao_estoque_repository import IConfiguracaoEstoqueRepository
 from core.models import ConfiguracaoEstoque as ConfiguracaoEstoqueModel
 
-class DjangoConfiguracao_estoqueRepository(IConfiguracao_estoqueRepository):
+class DjangoConfiguracaoEstoqueRepository(IConfiguracaoEstoqueRepository):
     def save(self, obj: ConfiguracaoEstoque) -> ConfiguracaoEstoque:
         """
         Se obj.id existir, atualiza; caso contrário, cria novo registro.

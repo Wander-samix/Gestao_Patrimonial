@@ -1,10 +1,10 @@
 from typing import List, Optional
-from core.domain.entities.movimentacao_estoque import Movimentacao_estoque
-from core.domain.repositories.movimentacao_estoque_repository import IMovimentacao_estoqueRepository
+from core.domain.entities.movimentacao_estoque import MovimentacaoEstoque
+from core.domain.repositories.movimentacao_estoque_repository import IMovimentacaoEstoqueRepository
 from core.models import MovimentacaoEstoque as MovimentacaoEstoqueModel
 
-class DjangoMovimentacao_estoqueRepository(IMovimentacao_estoqueRepository):
-    def save(self, obj: Movimentacao_estoque) -> Movimentacao_estoque:
+class DjangoMovimentacaoEstoqueRepository(IMovimentacaoEstoqueRepository):
+    def save(self, obj: MovimentacaoEstoque) -> MovimentacaoEstoque:
         """
         Se obj.id existir, atualiza; caso contrário, cria novo registro.
         Retorna a entidade de domínio com o id gerado/atualizado.
@@ -32,7 +32,7 @@ class DjangoMovimentacao_estoqueRepository(IMovimentacao_estoqueRepository):
                 nota_fiscal_id=obj.nota_fiscal_id,
                 cliente_id=obj.cliente_id
             )
-        return Movimentacao_estoque(
+        return MovimentacaoEstoque(
             id=m.id,
             tipo=m.tipo,
             data=m.data,
@@ -43,13 +43,13 @@ class DjangoMovimentacao_estoqueRepository(IMovimentacao_estoqueRepository):
             cliente_id=m.cliente_id
         )
 
-    def find_by_id(self, id: int) -> Optional[Movimentacao_estoque]:
+    def find_by_id(self, id: int) -> Optional[MovimentacaoEstoque]:
         """
-        Busca Movimentacao_estoque por PK; retorna None se não existir.
+        Busca MovimentacaoEstoque por PK; retorna None se não existir.
         """
         try:
             m = MovimentacaoEstoqueModel.objects.get(pk=id)
-            return Movimentacao_estoque(
+            return MovimentacaoEstoque(
                 id=m.id,
                 tipo=m.tipo,
                 data=m.data,
@@ -62,12 +62,12 @@ class DjangoMovimentacao_estoqueRepository(IMovimentacao_estoqueRepository):
         except MovimentacaoEstoqueModel.DoesNotExist:
             return None
 
-    def list_all(self) -> List[Movimentacao_estoque]:
+    def list_all(self) -> List[MovimentacaoEstoque]:
         """
         Retorna todas as movimentações de estoque como entidades de domínio.
         """
         return [
-            Movimentacao_estoque(
+            MovimentacaoEstoque(
                 id=m.id,
                 tipo=m.tipo,
                 data=m.data,

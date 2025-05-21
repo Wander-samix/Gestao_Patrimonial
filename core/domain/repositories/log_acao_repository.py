@@ -1,16 +1,16 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional
-from core.domain.entities.log_acao import Log_acao
+from core.domain.entities.log_acao import LogAcao
 
-class ILog_acaoRepository(ABC):
+class ILogAcaoRepository(ABC):
     @abstractmethod
-    def save(self, obj: Log_acao) -> Log_acao: ...
-
-    @abstractmethod
-    def find_by_id(self, id: int) -> Optional[Log_acao]: ...
+    def save(self, obj: LogAcao) -> LogAcao: ...
 
     @abstractmethod
-    def list_all(self) -> List[Log_acao]: ...
+    def find_by_id(self, id: int) -> Optional[LogAcao]: ...
+
+    @abstractmethod
+    def list_all(self) -> List[LogAcao]: ...
 
     @abstractmethod
     def delete(self, id: int) -> None: ...
