@@ -1,68 +1,40 @@
-from typing import Dict, Any, List, Optional
-from core.domain.entities.usuario import Usuario
-from core.domain.repositories.usuario_repository import IUsuarioRepository
-from infrastructure.repositories.django_usuario_repository import DjangoUsuarioRepository
+from core.application.contracts.usuario_service_contract import IUsuarioService
+from core.application.dtos.usuario_dto import CreateUsuarioDTO, UsuarioDTO
+from core.application.services.criar_usuario_service import CriarUsuarioService as RawService
 
-class CriarUsuarioService:
-    def __init__(self, repo: IUsuarioRepository = None):
-        # injeta o repositório ou usa a implementação Django por padrão
-        self.repo = repo or DjangoUsuarioRepository()
+class UsuarioService(IUsuarioService):
+    def __init__(self, repo=None):
+        # reaproveita seu serviço existente de criação
+        self._raw = RawService(repo)
 
-    def execute(self, dados: Dict[str, Any]) -> Usuario:
-        """
-        dados esperados:
-          - username: str (obrigatório, max_length=150)
-          - password: str (obrigatório)
-          - email: str (opcional, formato válido)
-          - first_name: str (opcional, max_length=30)
-          - last_name: str (opcional, max_length=150)
-          - matricula: str (opcional, max_length=20)
-          - papel: str (opcional, choices=['admin','operador','tecnico'], default 'operador')
-          - ativo: bool (opcional, default True)
-          - areas_ids: List[int] (opcional)
-          - groups_ids: List[int] (opcional)
-          - user_permissions_ids: List[int] (opcional)
-        """
-        # username
-        username = dados.get('username')
-        if not username or not isinstance(username, str) or not username.strip():
-            raise ValueError("O campo 'username' é obrigatório e não pode ser vazio.")
-        username = username.strip()[:150]
+    def create(self, dto: CreateUsuarioDTO) -> UsuarioDTO:
+        # converte o DTO em dict para passar ao serviço legado
+        dados = {
+            'username': dto.username,
+            'password': dto.password,
+            'email': dto.email,
+            'first_name': dto.first_name,
+            'last_name': dto.last_name,
+            'matricula': dto.matricula,
+            'papel': dto.papel,
+            'ativo': dto.ativo,
+            'areas_ids': dto.areas_ids,
+            'groups_ids': dto.groups_ids,
+            'user_permissions_ids': dto.user_permissions_ids,
+        }
+        usuario = self._raw.execute(dados)
 
-        # password
-        password = dados.get('password')
-        if not password or not isinstance(password, str):
-            raise ValueError("O campo 'password' é obrigatório e deve ser uma string.")
-        
-        # email (opcional)
-        email = dados.get('email')
-        if email is not None:
-            if not isinstance(email, str) or '@' not in email:
-                raise ValueError("'email' deve ser um endereço de e-mail válido.")
-            email = email.strip()
-
-        # first_name (opcional)
-        first_name = dados.get('first_name', '')
-        if not isinstance(first_name, str):
-            raise ValueError("'first_name' deve ser uma string.")
-        first_name = first_name.strip()[:30]
-
-        # last_name (opcional)
-        last_name = dados.get('last_name', '')
-        if not isinstance(last_name, str):
-            raise ValueError("'last_name' deve ser uma string.")
-        last_name = last_name.strip()[:150]
-
-        # matricula (opcional)
-        matricula = dados.get('matricula')
-        if matricula is not None:
-            if not isinstance(matricula, str):
-                raise ValueError("'matricula' deve ser uma string.")
-            matricula = matricula.strip()[:20]
-
-        # papel (opcional)
-        papel = dados.get('papel', 'operador')
-        if papel not in ('admin', 'operador', 'tecnico'):
-            raise ValueError(f"'papel' inválido: deve ser 'admin', 'operador' ou 'tecnico'.")
-        
-        #
+        # monta e retorna o DTO de saída
+        return UsuarioDTO(
+            id=usuario.id,
+            username=usuario.username,
+            email=usuario.email,
+            first_name=usuario.first_name,
+            last_name=usuario.last_name,
+            matricula=usuario.matricula,
+            papel=usuario.papel,
+            ativo=usuario.ativo,
+            areas_ids=[a.id for a in usuario.areas.all()],
+            groups_ids=[g.id for g in usuario.groups.all()],
+            user_permissions_ids=[p.id for p in usuario.user_permissions.all()],
+        )

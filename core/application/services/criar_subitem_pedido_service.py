@@ -1,51 +1,38 @@
-from typing import Dict, Any, Optional
-
+from core.application.contracts.subitem_pedido_service_contract import ISubitemPedidoService
+from core.application.dtos.subitem_pedido_dto import CreateSubitemPedidoDTO, SubitemPedidoDTO
 from core.domain.entities.subitem_pedido import Subitem_pedido
 from core.domain.repositories.subitem_pedido_repository import ISubitem_pedidoRepository
 from infrastructure.repositories.django_subitem_pedido_repository import DjangoSubitem_pedidoRepository
 
-class CriarSubitem_pedidoService:
+class SubitemPedidoService(ISubitemPedidoService):
     def __init__(self, repo: ISubitem_pedidoRepository = None):
-        # injeta o repositório ou usa a implementação Django por padrão
         self.repo = repo or DjangoSubitem_pedidoRepository()
 
-    def execute(self, dados: Dict[str, Any]) -> Subitem_pedido:
-        """
-        dados esperados:
-          - pedido_id: int (obrigatório, >0)
-          - produto_id: int (obrigatório, >0)
-          - quantidade: int (obrigatório, >0)
-          - estoque_no_pedido: int (opcional, >=0)
-        Retorna a entidade Subitem_pedido recém-criada.
-        """
-        # valida pedido_id
-        pedido_id = dados.get('pedido_id')
-        if not isinstance(pedido_id, int) or pedido_id < 1:
-            raise ValueError("O campo 'pedido_id' é obrigatório e deve ser um inteiro positivo.")
-
-        # valida produto_id
-        produto_id = dados.get('produto_id')
-        if not isinstance(produto_id, int) or produto_id < 1:
-            raise ValueError("O campo 'produto_id' é obrigatório e deve ser um inteiro positivo.")
-
-        # valida quantidade
-        quantidade = dados.get('quantidade')
-        if not isinstance(quantidade, int) or quantidade < 1:
-            raise ValueError("O campo 'quantidade' é obrigatório e deve ser um inteiro maior que zero.")
-
-        # valida estoque_no_pedido (opcional)
-        estoque_no_pedido: Optional[int] = dados.get('estoque_no_pedido')
-        if estoque_no_pedido is not None:
-            if not isinstance(estoque_no_pedido, int) or estoque_no_pedido < 0:
-                raise ValueError("Se informado, 'estoque_no_pedido' deve ser um inteiro >= 0.")
+    def create(self, dto: CreateSubitemPedidoDTO) -> SubitemPedidoDTO:
+        # validações simples (já estão no domínio, mas podemos reforçar aqui)
+        if dto.pedido_id < 1:
+            raise ValueError("`pedido_id` deve ser inteiro positivo.")
+        if dto.produto_id < 1:
+            raise ValueError("`produto_id` deve ser inteiro positivo.")
+        if dto.quantidade < 1:
+            raise ValueError("`quantidade` deve ser maior que zero.")
+        if dto.estoque_no_pedido is not None and dto.estoque_no_pedido < 0:
+            raise ValueError("`estoque_no_pedido` deve ser >= 0, se informado.")
 
         # monta a entidade de domínio
-        subitem = Subitem_pedido(
-            pedido_id=pedido_id,
-            produto_id=produto_id,
-            quantidade=quantidade,
-            estoque_no_pedido=estoque_no_pedido
+        entidade = Subitem_pedido(
+            pedido_id=dto.pedido_id,
+            produto_id=dto.produto_id,
+            quantidade=dto.quantidade,
+            estoque_no_pedido=dto.estoque_no_pedido,
         )
+        salvo = self.repo.save(entidade)
 
-        # persiste e retorna
-        return self.repo.save(subitem)
+        # retorna DTO de saída
+        return SubitemPedidoDTO(
+            id=salvo.id,
+            pedido_id=salvo.pedido_id,
+            produto_id=salvo.produto_id,
+            quantidade=salvo.quantidade,
+            estoque_no_pedido=salvo.estoque_no_pedido,
+        )

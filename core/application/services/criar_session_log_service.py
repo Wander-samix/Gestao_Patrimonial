@@ -1,76 +1,43 @@
-from typing import Dict, Any, Optional
-from datetime import datetime, timedelta
-import ipaddress
-
+from datetime import datetime
+from core.application.contracts.session_log_service_contract import ISessionLogService
+from core.application.dtos.session_log_dto import CreateSessionLogDTO, SessionLogDTO
 from core.domain.entities.session_log import Session_log
 from core.domain.repositories.session_log_repository import ISession_logRepository
 from infrastructure.repositories.django_session_log_repository import DjangoSession_logRepository
 
-class CriarSession_logService:
+class SessionLogService(ISessionLogService):
     def __init__(self, repo: ISession_logRepository = None):
-        # injeta o repositório ou usa a implementação Django por padrão
         self.repo = repo or DjangoSession_logRepository()
 
-    def execute(self, dados: Dict[str, Any]) -> Session_log:
-        """
-        dados esperados:
-          - user_id: int (obrigatório, >0)
-          - session_key: str (obrigatório, não vazio, max_length=40)
-          - login_time: datetime (obrigatório)
-          - logout_time: datetime (opcional, >= login_time)
-          - duration: timedelta (opcional)
-          - ip: str (opcional, formato IPv4/IPv6)
-        Retorna a entidade Session_log recém-criada.
-        """
-        # valida user_id
-        user_id = dados.get('user_id')
-        if not isinstance(user_id, int) or user_id < 1:
-            raise ValueError("O campo 'user_id' é obrigatório e deve ser um inteiro positivo.")
+    def create(self, dto: CreateSessionLogDTO) -> SessionLogDTO:
+        # validações básicas
+        if dto.user_id < 1:
+            raise ValueError("`user_id` deve ser inteiro positivo.")
+        if not dto.session_key.strip():
+            raise ValueError("`session_key` não pode ser vazio.")
+        if not isinstance(dto.login_time, datetime):
+            raise ValueError("`login_time` deve ser datetime.")
 
-        # valida session_key
-        session_key = dados.get('session_key')
-        if not session_key or not isinstance(session_key, str) or not session_key.strip():
-            raise ValueError("O campo 'session_key' é obrigatório e não pode ser vazio.")
-        session_key = session_key.strip()[:40]
+        # se informaram logout_time, deve ser >= login_time
+        if dto.logout_time and dto.logout_time < dto.login_time:
+            raise ValueError("`logout_time` não pode ser anterior a `login_time`.")
 
-        # valida login_time
-        login_time = dados.get('login_time')
-        if not isinstance(login_time, datetime):
-            raise ValueError("O campo 'login_time' é obrigatório e deve ser um objeto datetime.")
-
-        # valida logout_time (opcional)
-        logout_time: Optional[datetime] = dados.get('logout_time')
-        if logout_time is not None:
-            if not isinstance(logout_time, datetime):
-                raise ValueError("'logout_time' deve ser um objeto datetime, se informado.")
-            if logout_time < login_time:
-                raise ValueError("'logout_time' não pode ser anterior a 'login_time'.")
-
-        # valida duration (opcional)
-        duration: Optional[timedelta] = dados.get('duration')
-        if duration is not None and not isinstance(duration, timedelta):
-            raise ValueError("'duration' deve ser um objeto timedelta, se informado.")
-
-        # valida ip (opcional)
-        ip: Optional[str] = dados.get('ip')
-        if ip is not None:
-            if not isinstance(ip, str):
-                raise ValueError("'ip' deve ser uma string.")
-            ip = ip.strip()
-            try:
-                ipaddress.ip_address(ip)
-            except ValueError:
-                raise ValueError(f"'{ip}' não é um endereço IP válido.")
-
-        # monta a entidade de domínio
-        session_log = Session_log(
-            user_id=user_id,
-            session_key=session_key,
-            login_time=login_time,
-            logout_time=logout_time,
-            duration=duration,
-            ip=ip
+        entidade = Session_log(
+            user_id=dto.user_id,
+            session_key=dto.session_key,
+            login_time=dto.login_time,
+            logout_time=dto.logout_time,
+            duration=dto.duration,
+            ip=dto.ip,
         )
+        salvo = self.repo.save(entidade)
 
-        # persiste e retorna
-        return self.repo.save(session_log)
+        return SessionLogDTO(
+            id=salvo.id,
+            user_id=salvo.user_id,
+            session_key=salvo.session_key,
+            login_time=salvo.login_time.isoformat(),
+            logout_time=salvo.logout_time and salvo.logout_time.isoformat(),
+            duration=salvo.duration.total_seconds() if salvo.duration else None,
+            ip=salvo.ip,
+        )

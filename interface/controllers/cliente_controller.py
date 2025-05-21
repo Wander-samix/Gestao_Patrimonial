@@ -1,29 +1,40 @@
 import json
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse
-from core.application.services.criar_cliente_service import CriarClienteService
+from core.application.dtos.cliente_dto import (
+    CreateClienteDTO,
+    ClienteDTO
+)
+from core.application.contracts.cliente_service_contract import IClienteService
+from core.application.services.criar_cliente_service import ClienteService
 
 @require_POST
 def criar_cliente(request):
     # 1) Parse do JSON
     try:
-        dados = json.loads(request.body)
+        payload = json.loads(request.body)
     except json.JSONDecodeError:
         return JsonResponse({'error': 'JSON inválido'}, status=400)
 
-    service = CriarClienteService()
-    # 2) Execução do serviço com captura de erros de validação
+    # 2) Monta DTO de entrada
     try:
-        cliente = service.execute(dados)
+        dto_in = CreateClienteDTO(
+            matricula=payload.get('matricula'),
+            nome_completo=payload.get('nome_completo'),
+            email=payload.get('email'),
+            telefone=payload.get('telefone'),
+            curso=payload.get('curso'),
+        )
+    except TypeError as e:
+        # Se faltar algum campo obrigatório no DTO
+        return JsonResponse({'error': f'Campo ausente ou formato inválido: {e}'}, status=400)
+
+    # 3) Invoca serviço (pode trocar implementação via IClienteService)
+    service: IClienteService = ClienteService()
+    try:
+        dto_out: ClienteDTO = service.create(dto_in)
     except ValueError as e:
         return JsonResponse({'error': str(e)}, status=400)
 
-    # 3) Retorno com 201 e payload explícito
-    return JsonResponse({
-        'id': cliente.id,
-        'matricula': cliente.matricula,
-        'nome_completo': cliente.nome_completo,
-        'email': cliente.email,
-        'telefone': cliente.telefone,
-        'curso': cliente.curso
-    }, status=201)
+    # 4) Retorna o DTO de saída diretamente
+    return JsonResponse(dto_out.__dict__, status=201)

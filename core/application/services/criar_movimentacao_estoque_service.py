@@ -1,75 +1,73 @@
-from typing import Dict, Any, Optional
 from datetime import datetime
+from typing import Optional
+import ipaddress
+
+from core.application.contracts.movimentacao_estoque_service_contract import IMovimentacaoEstoqueService
+from core.application.dtos.movimentacao_estoque_dto import (
+    CreateMovimentacaoEstoqueDTO,
+    MovimentacaoEstoqueDTO,
+)
 from core.domain.entities.movimentacao_estoque import Movimentacao_estoque
 from core.domain.repositories.movimentacao_estoque_repository import IMovimentacao_estoqueRepository
 from infrastructure.repositories.django_movimentacao_estoque_repository import DjangoMovimentacao_estoqueRepository
 
-class CriarMovimentacao_estoqueService:
+class MovimentacaoEstoqueService(IMovimentacaoEstoqueService):
     def __init__(self, repo: IMovimentacao_estoqueRepository = None):
-        # injeta o repositório ou usa a implementação Django por padrão
         self.repo = repo or DjangoMovimentacao_estoqueRepository()
 
-    def execute(self, dados: Dict[str, Any]) -> Movimentacao_estoque:
-        """
-        dados esperados:
-          - tipo: str ("entrada" ou "saida", obrigatório)
-          - data: datetime (opcional, default agora)
-          - usuario_id: int (obrigatório, >0)
-          - quantidade: int (obrigatório, >0)
-          - produto_id: int (obrigatório, >0)
-          - nota_fiscal_id: int (opcional, >0)
-          - cliente_id: int (opcional, >0)
-        Retorna a entidade Movimentacao_estoque recém-criada.
-        """
-        # valida tipo
-        tipo = dados.get('tipo')
-        if tipo not in ('entrada', 'saida'):
-            raise ValueError("O campo 'tipo' é obrigatório e deve ser 'entrada' ou 'saida'.")
+    def create(self, dto: CreateMovimentacaoEstoqueDTO) -> MovimentacaoEstoqueDTO:
+        # tipo
+        if dto.tipo not in ("entrada", "saida"):
+            raise ValueError("O campo 'tipo' deve ser 'entrada' ou 'saida'.")
 
-        # data (opcional)
-        data = dados.get('data')
-        if data is not None:
-            if not isinstance(data, datetime):
-                raise ValueError("'data' deve ser um objeto datetime.")
-        else:
+        # data
+        data = dto.data
+        if data is None:
             data = datetime.now()
+        elif not isinstance(data, datetime):
+            raise ValueError("'data' deve ser um datetime, se informado.")
 
         # usuario_id
-        usuario_id = dados.get('usuario_id')
-        if not isinstance(usuario_id, int) or usuario_id < 1:
-            raise ValueError("O campo 'usuario_id' é obrigatório e deve ser um inteiro positivo.")
+        if not isinstance(dto.usuario_id, int) or dto.usuario_id < 1:
+            raise ValueError("O campo 'usuario_id' deve ser inteiro positivo.")
 
         # quantidade
-        quantidade = dados.get('quantidade')
-        if not isinstance(quantidade, int) or quantidade <= 0:
-            raise ValueError("O campo 'quantidade' é obrigatório e deve ser um inteiro maior que zero.")
+        if not isinstance(dto.quantidade, int) or dto.quantidade <= 0:
+            raise ValueError("O campo 'quantidade' deve ser inteiro > 0.")
 
         # produto_id
-        produto_id = dados.get('produto_id')
-        if not isinstance(produto_id, int) or produto_id < 1:
-            raise ValueError("O campo 'produto_id' é obrigatório e deve ser um inteiro positivo.")
+        if not isinstance(dto.produto_id, int) or dto.produto_id < 1:
+            raise ValueError("O campo 'produto_id' deve ser inteiro positivo.")
 
-        # nota_fiscal_id (opcional)
-        nota_fiscal_id: Optional[int] = dados.get('nota_fiscal_id')
-        if nota_fiscal_id is not None:
-            if not isinstance(nota_fiscal_id, int) or nota_fiscal_id < 1:
-                raise ValueError("'nota_fiscal_id' deve ser um inteiro positivo, se informado.")
+        # nota_fiscal_id
+        if dto.nota_fiscal_id is not None:
+            if not isinstance(dto.nota_fiscal_id, int) or dto.nota_fiscal_id < 1:
+                raise ValueError("'nota_fiscal_id' deve ser inteiro positivo, se informado.")
 
-        # cliente_id (opcional)
-        cliente_id: Optional[int] = dados.get('cliente_id')
-        if cliente_id is not None:
-            if not isinstance(cliente_id, int) or cliente_id < 1:
-                raise ValueError("'cliente_id' deve ser um inteiro positivo, se informado.")
+        # cliente_id
+        if dto.cliente_id is not None:
+            if not isinstance(dto.cliente_id, int) or dto.cliente_id < 1:
+                raise ValueError("'cliente_id' deve ser inteiro positivo, se informado.")
 
-        # monta a entidade de domínio
+        # monta entidade e persiste
         mov = Movimentacao_estoque(
-            tipo=tipo,
+            tipo=dto.tipo,
             data=data,
-            usuario_id=usuario_id,
-            quantidade=quantidade,
-            produto_id=produto_id,
-            nota_fiscal_id=nota_fiscal_id,
-            cliente_id=cliente_id
+            usuario_id=dto.usuario_id,
+            quantidade=dto.quantidade,
+            produto_id=dto.produto_id,
+            nota_fiscal_id=dto.nota_fiscal_id,
+            cliente_id=dto.cliente_id,
         )
-        # persiste e retorna
-        return self.repo.save(mov)
+        criado = self.repo.save(mov)
+
+        return MovimentacaoEstoqueDTO(
+            id=criado.id,
+            tipo=criado.tipo,
+            data=criado.data,
+            usuario_id=criado.usuario_id,
+            quantidade=criado.quantidade,
+            produto_id=criado.produto_id,
+            nota_fiscal_id=criado.nota_fiscal_id,
+            cliente_id=criado.cliente_id,
+        )

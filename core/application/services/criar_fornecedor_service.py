@@ -1,69 +1,40 @@
-from typing import Dict, Any
+# core/application/services/fornecedor_service.py
+from typing import List, Optional
+from core.application.contracts.fornecedor_service_contract import IFornecedorService
+from core.application.dtos.fornecedor_dto import CreateFornecedorDTO, FornecedorDTO
 from core.domain.entities.fornecedor import Fornecedor
 from core.domain.repositories.fornecedor_repository import IFornecedorRepository
 from infrastructure.repositories.django_fornecedor_repository import DjangoFornecedorRepository
 
-class CriarFornecedorService:
+class FornecedorService(IFornecedorService):
     def __init__(self, repo: IFornecedorRepository = None):
-        # injeta o repositório ou usa a implementação Django por padrão
         self.repo = repo or DjangoFornecedorRepository()
 
-    def execute(self, dados: Dict[str, Any]) -> Fornecedor:
-        """
-        dados esperados:
-          - nome: str (obrigatório, max_length=255)
-          - cnpj: str (opcional, 14 dígitos)
-          - endereco: str (opcional)
-          - telefone: str (opcional, max_length=15)
-          - email: str (opcional, formato válido)
-          - ativo: bool (opcional, default True)
-        Retorna a entidade Fornecedor recém-criada.
-        """
-        # nome (obrigatório)
-        nome = dados.get('nome')
-        if not nome or not isinstance(nome, str) or not nome.strip():
+    def create(self, dto: CreateFornecedorDTO) -> FornecedorDTO:
+        # --- validações de negócio ---
+        nome = dto.nome.strip()
+        if not nome:
             raise ValueError("O campo 'nome' é obrigatório e não pode ser vazio.")
-        nome = nome.strip()[:255]
+        if len(nome) > 255:
+            nome = nome[:255]
 
-        # cnpj (opcional)
-        cnpj = dados.get('cnpj')
-        if cnpj is not None:
-            if not isinstance(cnpj, str):
-                raise ValueError("'cnpj' deve ser uma string de 14 dígitos.")
-            cnpj = cnpj.strip()
-            if cnpj and (not cnpj.isdigit() or len(cnpj) != 14):
+        cnpj = dto.cnpj.strip() if dto.cnpj else None
+        if cnpj:
+            if not cnpj.isdigit() or len(cnpj) != 14:
                 raise ValueError("'cnpj' deve conter exatamente 14 dígitos numéricos.")
 
-        # endereco (opcional)
-        endereco = dados.get('endereco')
-        if endereco is None:
-            endereco = ''
-        elif not isinstance(endereco, str):
-            raise ValueError("'endereco' deve ser uma string.")
-        else:
-            endereco = endereco.strip()
+        endereco = dto.endereco.strip() if dto.endereco else ""
+        telefone = dto.telefone.strip()[:15] if dto.telefone else None
+        email = dto.email.strip() if dto.email else None
+        if email and '@' not in email:
+            raise ValueError("'email' deve ser um endereço de e-mail válido.")
 
-        # telefone (opcional)
-        telefone = dados.get('telefone')
-        if telefone is not None:
-            if not isinstance(telefone, str) or not telefone.strip():
-                raise ValueError("'telefone' deve ser uma string não vazia.")
-            telefone = telefone.strip()[:15]
-
-        # email (opcional)
-        email = dados.get('email')
-        if email is not None:
-            if not isinstance(email, str) or '@' not in email:
-                raise ValueError("'email' deve ser um endereço de e-mail válido.")
-            email = email.strip()
-
-        # ativo (opcional)
-        ativo = dados.get('ativo', True)
+        ativo = dto.ativo
         if not isinstance(ativo, bool):
-            raise ValueError("'ativo' deve ser um booleano.")
+            raise ValueError("'ativo' deve ser booleano.")
 
-        # monta a entidade de domínio
-        fornecedor = Fornecedor(
+        # --- cria a entidade de domínio ---
+        entidade = Fornecedor(
             nome=nome,
             cnpj=cnpj,
             endereco=endereco,
@@ -71,5 +42,45 @@ class CriarFornecedorService:
             email=email,
             ativo=ativo
         )
-        # persiste e retorna
-        return self.repo.save(fornecedor)
+
+        # --- persiste via repositório ---
+        salvo = self.repo.save(entidade)
+
+        # --- monta e retorna DTO de saída ---
+        return FornecedorDTO(
+            id=salvo.id,
+            nome=salvo.nome,
+            cnpj=salvo.cnpj,
+            endereco=salvo.endereco,
+            telefone=salvo.telefone,
+            email=salvo.email,
+            ativo=salvo.ativo
+        )
+
+    def find_by_id(self, id: int) -> Optional[FornecedorDTO]:
+        e = self.repo.find_by_id(id)
+        if not e:
+            return None
+        return FornecedorDTO(
+            id=e.id,
+            nome=e.nome,
+            cnpj=e.cnpj,
+            endereco=e.endereco,
+            telefone=e.telefone,
+            email=e.email,
+            ativo=e.ativo
+        )
+
+    def list_all(self) -> List[FornecedorDTO]:
+        todos = self.repo.list_all()
+        return [
+            FornecedorDTO(
+                id=e.id,
+                nome=e.nome,
+                cnpj=e.cnpj,
+                endereco=e.endereco,
+                telefone=e.telefone,
+                email=e.email,
+                ativo=e.ativo
+            ) for e in todos
+        ]

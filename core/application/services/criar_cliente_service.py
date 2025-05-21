@@ -1,60 +1,70 @@
-from typing import Dict, Any
+# core/application/services/cliente_service.py
+from typing import List
+from core.application.contracts.cliente_service_contract import IClienteService
+from core.application.dtos.cliente_dto import CreateClienteDTO, ClienteDTO
 from core.domain.entities.cliente import Cliente
 from core.domain.repositories.cliente_repository import IClienteRepository
 from infrastructure.repositories.django_cliente_repository import DjangoClienteRepository
 
-class CriarClienteService:
+class ClienteService(IClienteService):
     def __init__(self, repo: IClienteRepository = None):
-        # injeta o repositório ou usa a implementação Django por padrão
-        self.repo = repo or DjangoClienteRepository()
+        self.repo: IClienteRepository = repo or DjangoClienteRepository()
 
-    def execute(self, dados: Dict[str, Any]) -> Cliente:
-        """
-        dados esperados:
-          - matricula: str (obrigatório, max_length=50)
-          - nome_completo: str (obrigatório, max_length=255)
-          - email: str (obrigatório, formato básico)
-          - telefone: str (obrigatório, max_length=15)
-          - curso: str (obrigatório, max_length=255)
-        Retorna a entidade Cliente recém-criada.
-        """
-        # valida matricula
-        matricula = dados.get('matricula')
-        if not matricula or not isinstance(matricula, str) or not matricula.strip():
-            raise ValueError("O campo 'matricula' é obrigatório e não pode ser vazio.")
-        matricula = matricula.strip()[:50]
+    def create(self, dto: CreateClienteDTO) -> ClienteDTO:
+        # validações
+        if not dto.matricula.strip():
+            raise ValueError("Matrícula é obrigatória.")
+        if not dto.nome_completo.strip():
+            raise ValueError("Nome completo é obrigatório.")
+        if '@' not in dto.email or not dto.email.strip():
+            raise ValueError("Email inválido.")
+        if not dto.telefone.strip():
+            raise ValueError("Telefone é obrigatório.")
+        if not dto.curso.strip():
+            raise ValueError("Curso é obrigatório.")
 
-        # valida nome_completo
-        nome = dados.get('nome_completo')
-        if not nome or not isinstance(nome, str) or not nome.strip():
-            raise ValueError("O campo 'nome_completo' é obrigatório e não pode ser vazio.")
-        nome = nome.strip()[:255]
-
-        # valida email (cheque básico)
-        email = dados.get('email')
-        if not email or not isinstance(email, str) or '@' not in email:
-            raise ValueError("O campo 'email' é obrigatório e deve ser um endereço válido.")
-        email = email.strip()
-
-        # valida telefone
-        telefone = dados.get('telefone')
-        if not telefone or not isinstance(telefone, str) or not telefone.strip():
-            raise ValueError("O campo 'telefone' é obrigatório e não pode ser vazio.")
-        telefone = telefone.strip()[:15]
-
-        # valida curso
-        curso = dados.get('curso')
-        if not curso or not isinstance(curso, str) or not curso.strip():
-            raise ValueError("O campo 'curso' é obrigatório e não pode ser vazio.")
-        curso = curso.strip()[:255]
-
-        # monta a entidade de domínio
-        cliente = Cliente(
-            matricula=matricula,
-            nome_completo=nome,
-            email=email,
-            telefone=telefone,
-            curso=curso
+        # cria entidade de domínio
+        entidade = Cliente(
+            matricula=dto.matricula.strip()[:50],
+            nome_completo=dto.nome_completo.strip()[:255],
+            email=dto.email.strip(),
+            telefone=dto.telefone.strip()[:15],
+            curso=dto.curso.strip()[:255],
         )
-        # persiste e retorna
-        return self.repo.save(cliente)
+
+        salvo = self.repo.save(entidade)
+        return ClienteDTO(
+            id=salvo.id,
+            matricula=salvo.matricula,
+            nome_completo=salvo.nome_completo,
+            email=salvo.email,
+            telefone=salvo.telefone,
+            curso=salvo.curso,
+        )
+
+    def find_by_id(self, id: int) -> ClienteDTO:
+        entidade = self.repo.find_by_id(id)
+        if entidade is None:
+            raise ValueError(f"Cliente com id {id} não encontrado.")
+        return ClienteDTO(
+            id=entidade.id,
+            matricula=entidade.matricula,
+            nome_completo=entidade.nome_completo,
+            email=entidade.email,
+            telefone=entidade.telefone,
+            curso=entidade.curso,
+        )
+
+    def list_all(self) -> List[ClienteDTO]:
+        entidades = self.repo.list_all()
+        return [
+            ClienteDTO(
+                id=e.id,
+                matricula=e.matricula,
+                nome_completo=e.nome_completo,
+                email=e.email,
+                telefone=e.telefone,
+                curso=e.curso,
+            )
+            for e in entidades
+        ]

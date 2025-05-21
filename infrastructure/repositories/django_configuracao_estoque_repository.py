@@ -1,10 +1,10 @@
 from typing import List, Optional
-from core.domain.entities.configuracao_estoque import Configuracao_estoque
+from core.domain.entities.configuracao_estoque import ConfiguracaoEstoque
 from core.domain.repositories.configuracao_estoque_repository import IConfiguracao_estoqueRepository
 from core.models import ConfiguracaoEstoque as ConfiguracaoEstoqueModel
 
 class DjangoConfiguracao_estoqueRepository(IConfiguracao_estoqueRepository):
-    def save(self, obj: Configuracao_estoque) -> Configuracao_estoque:
+    def save(self, obj: ConfiguracaoEstoque) -> ConfiguracaoEstoque:
         """
         Se obj.id existir, atualiza; caso contrário, cria novo registro.
         Retorna a entidade de domínio com o id gerado/atualizado.
@@ -19,19 +19,19 @@ class DjangoConfiguracao_estoqueRepository(IConfiguracao_estoqueRepository):
                 area_id=obj.area_id,
                 estoque_minimo=obj.estoque_minimo
             )
-        return Configuracao_estoque(
+        return ConfiguracaoEstoque(
             id=model.id,
             area_id=model.area_id,
             estoque_minimo=model.estoque_minimo
         )
 
-    def find_by_id(self, id: int) -> Optional[Configuracao_estoque]:
+    def find_by_id(self, id: int) -> Optional[ConfiguracaoEstoque]:
         """
         Busca por PK; retorna None se não existir.
         """
         try:
             m = ConfiguracaoEstoqueModel.objects.get(pk=id)
-            return Configuracao_estoque(
+            return ConfiguracaoEstoque(
                 id=m.id,
                 area_id=m.area_id,
                 estoque_minimo=m.estoque_minimo
@@ -39,12 +39,12 @@ class DjangoConfiguracao_estoqueRepository(IConfiguracao_estoqueRepository):
         except ConfiguracaoEstoqueModel.DoesNotExist:
             return None
 
-    def list_all(self) -> List[Configuracao_estoque]:
+    def list_all(self) -> List[ConfiguracaoEstoque]:
         """
         Retorna todas as configurações como entidades de domínio.
         """
         return [
-            Configuracao_estoque(
+            ConfiguracaoEstoque(
                 id=m.id,
                 area_id=m.area_id,
                 estoque_minimo=m.estoque_minimo
