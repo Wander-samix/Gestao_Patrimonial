@@ -33,10 +33,15 @@ os.makedirs(BASE_DIR / "static", exist_ok=True)
 # os.makedirs(MEDIA_ROOT, exist_ok=True)
 
 # Configuração dos templates
+# Configuração dos templates
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / "templates"],  # Buscará templates na pasta templates/
+        # adicionamos interface/templates para dar prioridade aos seus HTMLs lá
+        'DIRS': [
+            BASE_DIR / "templates",                  # pasta global, se você usar
+            BASE_DIR / "interface" / "templates",    # onde estão seus core/produto/*.html
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'builtins': [
@@ -52,6 +57,8 @@ TEMPLATES = [
     },
 ]
 
+
+
 # Apps instalados
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -60,6 +67,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    # Django REST Framework
+    'rest_framework',
 
     # App principal
     'core',
@@ -105,6 +115,17 @@ DATABASES = {
 #         ssl_require=bool(os.environ.get('DATABASE_SSL', False)),
 #     )
 # }
+
+# Configuração mínima do Django REST Framework
+REST_FRAMEWORK = {
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
+    ],
+}
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

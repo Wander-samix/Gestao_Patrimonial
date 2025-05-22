@@ -1,69 +1,42 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import authenticate, login, logout, get_user_model
+from django.urls import reverse
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.db.utils import IntegrityError
-from django.utils.dateparse import parse_date
-from django.utils.timezone import now
-from django.core.files.storage import FileSystemStorage
-from django.http import JsonResponse, HttpResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_POST
-from django.db.models.functions import TruncMonth
-from django.core.mail import send_mail
-from django.core.serializers.json import DjangoJSONEncoder
-import xml.etree.ElementTree as ET
-import json
-import requests
-from openpyxl import Workbook
-from django.db.models import Q, Sum, Max, Min, F, DecimalField
-from django.views.decorators.http import require_GET
-from itertools import zip_longest
-from core.models import (
-    Produto, Fornecedor, Usuario, MovimentacaoEstoque,
-    Area, Pedido, ItemPedido, LogAcao,
-    ConfiguracaoEstoque)
-from ..forms.forms import AreaForm, ConfiguracaoEstoqueForm
-from django.db import transaction
-from django import template
-from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
-from django.contrib import messages
-from django.contrib.auth import update_session_auth_hash
-from django.contrib.auth.forms import PasswordChangeForm
-from ..forms.forms import ProfileForm
-from ..forms.forms import ProdutoForm
-import csv
-from datetime import date, datetime
-from django.shortcuts import render
-from core.models import SessionLog
-from django.core.paginator import Paginator
-from openpyxl import Workbook
-from openpyxl.styles import Font, Alignment, PatternFill
-from openpyxl.utils import get_column_letter
-from django.db.models import OuterRef, Subquery
-from core.models import SaidaProdutoPorPedido
 
+from core.models import Area
 
-register = template.Library()
-User = get_user_model()
-
-PENDING_STATUSES = [
-    'aguardando_aprovacao',
-    'aprovado',
-    'separado',
-]
-
-
-def lista_areas(request):
-    if request.method == "POST":
-        nome = request.POST.get("nome")
-        Area.objects.create(nome=nome)
-        return redirect("lista_areas")
-    return render(request, "core/areas.html", {
-        "areas": Area.objects.all()
-    })
 
 @login_required
-@require_GET
+def lista_areas(request):
+    areas = Area.objects.all()
+    return render(request, 'area/lista.html', {'areas': areas})
 
+
+@login_required
+def nova_area(request):
+    if request.method == 'POST':
+        data = request.POST.dict()
+        Area.objects.create(**data)
+        messages.success(request, 'Área cadastrada com sucesso.')
+        return redirect(reverse('lista_areas'))
+    return render(request, 'area/novo.html')
+
+
+@login_required
+def editar_area(request, id):
+    area = get_object_or_404(Area, id=id)
+    if request.method == 'POST':
+        for key, value in request.POST.items():
+            setattr(area, key, value)
+        area.save()
+        messages.success(request, 'Área atualizada com sucesso.')
+        return redirect(reverse('lista_areas'))
+    return render(request, 'area/editar.html', {'area': area})
+
+
+@login_required
+def excluir_area(request, id):
+    area = get_object_or_404(Area, id=id)
+    area.delete()
+    messages.success(request, 'Área excluída com sucesso.')
+    return redirect(reverse('lista_areas'))
