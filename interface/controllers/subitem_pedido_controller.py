@@ -1,38 +1,57 @@
-import json
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth import authenticate, login, logout, get_user_model
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.db.utils import IntegrityError
+from django.utils.dateparse import parse_date
+from django.utils.timezone import now
+from django.core.files.storage import FileSystemStorage
+from django.http import JsonResponse, HttpResponse
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from django.http import JsonResponse
+from django.db.models.functions import TruncMonth
+from django.core.mail import send_mail
+from django.core.serializers.json import DjangoJSONEncoder
+import xml.etree.ElementTree as ET
+import json
+import requests
+from openpyxl import Workbook
+from django.db.models import Q, Sum, Max, Min, F, DecimalField
+from django.views.decorators.http import require_GET
+from itertools import zip_longest
+from core.models import (
+    Produto, Fornecedor, Usuario, MovimentacaoEstoque,
+    Area, Pedido, ItemPedido, LogAcao,
+    ConfiguracaoEstoque)
+from ..forms.forms import AreaForm, ConfiguracaoEstoqueForm
+from django.db import transaction
+from django import template
+from django.shortcuts import render, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth.forms import PasswordChangeForm
+from ..forms.forms import ProfileForm
+from ..forms.forms import ProdutoForm
+import csv
+from datetime import date, datetime
+from django.shortcuts import render
+from core.models import SessionLog
+from django.core.paginator import Paginator
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, PatternFill
+from openpyxl.utils import get_column_letter
+from django.db.models import OuterRef, Subquery
+from core.models import SaidaProdutoPorPedido
 
-from core.application.dtos.subitem_pedido_dto import CreateSubitemPedidoDTO
-from core.application.services.criar_subitem_pedido_service import SubitemPedidoService
 
-@require_POST
-def criar_subitem_pedido(request):
-    # 1) Parse JSON
-    try:
-        payload = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({'error': 'JSON inválido'}, status=400)
+register = template.Library()
+User = get_user_model()
 
-    # 2) Monta o DTO de entrada
-    dto = CreateSubitemPedidoDTO(
-        pedido_id        = payload.get('pedido_id', 0),
-        produto_id       = payload.get('produto_id', 0),
-        quantidade       = payload.get('quantidade', 0),
-        estoque_no_pedido= payload.get('estoque_no_pedido'),
-    )
+PENDING_STATUSES = [
+    'aguardando_aprovacao',
+    'aprovado',
+    'separado',
+]
 
-    # 3) Chama o serviço
-    service = SubitemPedidoService()
-    try:
-        out = service.create(dto)
-    except ValueError as e:
-        return JsonResponse({'error': str(e)}, status=400)
 
-    # 4) Retorna JSON 201
-    return JsonResponse({
-        'id':               out.id,
-        'pedido_id':        out.pedido_id,
-        'produto_id':       out.produto_id,
-        'quantidade':       out.quantidade,
-        'estoque_no_pedido':out.estoque_no_pedido,
-    }, status=201)

@@ -19,6 +19,8 @@ from django.urls import include, path
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    # troque a linha abaixo pela sua API DDD:
-    path('api/', include('interface.urls')),
+
+    # se você quiser que tudo que seja /api/... vá para os seus controllers de API:
+    path('api/', include('interface.urls')),  
+  
 ]

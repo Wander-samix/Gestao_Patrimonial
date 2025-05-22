@@ -7,17 +7,17 @@ from core.application.dtos.saida_produto_por_pedido_dto import (
     CreateSaidaProdutoPorPedidoDTO,
     SaidaProdutoPorPedidoDTO,
 )
-from core.domain.entities.saida_produto_por_pedido import Saida_produto_por_pedido
+from core.domain.entities.saida_produto_por_pedido import SaidaProdutoPorPedido
 from core.domain.repositories.saida_produto_por_pedido_repository import (
-    ISaida_produto_por_pedidoRepository,
+    ISaidaProdutoPorPedidoRepository,
 )
 from infrastructure.repositories.django_saida_produto_por_pedido_repository import (
-    DjangoSaida_produto_por_pedidoRepository,
+    DjangoSaidaProdutoPorPedidoRepository,
 )
 
 class SaidaProdutoPorPedidoService(ISaidaProdutoPorPedidoService):
-    def __init__(self, repo: ISaida_produto_por_pedidoRepository = None):
-        self.repo = repo or DjangoSaida_produto_por_pedidoRepository()
+    def __init__(self, repo: ISaidaProdutoPorPedidoRepository = None):
+        self.repo = repo or DjangoSaidaProdutoPorPedidoRepository()
 
     def create(self, dto: CreateSaidaProdutoPorPedidoDTO) -> SaidaProdutoPorPedidoDTO:
         # validações
@@ -29,7 +29,7 @@ class SaidaProdutoPorPedidoService(ISaidaProdutoPorPedidoService):
             raise ValueError("`quantidade` deve ser maior que zero.")
 
         # monta entidade de domínio
-        entidade = Saida_produto_por_pedido(
+        entidade = SaidaProdutoPorPedido(
             produto_id=dto.produto_id,
             pedido_id=dto.pedido_id,
             quantidade=dto.quantidade

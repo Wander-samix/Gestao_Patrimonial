@@ -1,10 +1,10 @@
 from typing import List, Optional
-from core.domain.entities.session_log import Session_log
-from core.domain.repositories.session_log_repository import ISession_logRepository
+from core.domain.entities.session_log import SessionLog
+from core.domain.repositories.session_log_repository import ISessionLogRepository
 from core.models import SessionLog as SessionLogModel
 
-class DjangoSession_logRepository(ISession_logRepository):
-    def save(self, obj: Session_log) -> Session_log:
+class DjangoSessionLogRepository(ISessionLogRepository):
+    def save(self, obj: SessionLog) -> SessionLog:
         """
         Se obj.id existir, atualiza; caso contrário, cria novo registro.
         Retorna a entidade de domínio com o id gerado/atualizado.
@@ -30,7 +30,7 @@ class DjangoSession_logRepository(ISession_logRepository):
                 duration    = obj.duration,
                 ip          = obj.ip
             )
-        return Session_log(
+        return SessionLog(
             id=m.id,
             user_id=m.user_id,
             session_key=m.session_key,
@@ -40,13 +40,13 @@ class DjangoSession_logRepository(ISession_logRepository):
             ip=m.ip
         )
 
-    def find_by_id(self, id: int) -> Optional[Session_log]:
+    def find_by_id(self, id: int) -> Optional[SessionLog]:
         """
-        Busca Session_log por PK; retorna None se não existir.
+        Busca SessionLog por PK; retorna None se não existir.
         """
         try:
             m = SessionLogModel.objects.get(pk=id)
-            return Session_log(
+            return SessionLog(
                 id=m.id,
                 user_id=m.user_id,
                 session_key=m.session_key,
@@ -58,12 +58,12 @@ class DjangoSession_logRepository(ISession_logRepository):
         except SessionLogModel.DoesNotExist:
             return None
 
-    def list_all(self) -> List[Session_log]:
+    def list_all(self) -> List[SessionLog]:
         """
-        Retorna todos os Session_log como entidades de domínio.
+        Retorna todos os SessionLog como entidades de domínio.
         """
         return [
-            Session_log(
+            SessionLog(
                 id=m.id,
                 user_id=m.user_id,
                 session_key=m.session_key,

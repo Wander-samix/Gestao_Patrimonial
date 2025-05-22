@@ -1,10 +1,10 @@
 from typing import List, Optional
-from core.domain.entities.subitem_pedido import Subitem_pedido
-from core.domain.repositories.subitem_pedido_repository import ISubitem_pedidoRepository
+from core.domain.entities.subitem_pedido import SubItemPedido
+from core.domain.repositories.subitem_pedido_repository import ISubItemPedidoRepository
 from core.models import SubItemPedido as SubItemPedidoModel
 
-class DjangoSubitem_pedidoRepository(ISubitem_pedidoRepository):
-    def save(self, obj: Subitem_pedido) -> Subitem_pedido:
+class DjangoSubItemPedidoRepository(ISubItemPedidoRepository):
+    def save(self, obj: SubItemPedido) -> SubItemPedido:
         """
         Se obj.id existir, atualiza; caso contrário, cria novo registro.
         """
@@ -22,7 +22,7 @@ class DjangoSubitem_pedidoRepository(ISubitem_pedidoRepository):
                 quantidade        = obj.quantidade,
                 estoque_no_pedido = obj.estoque_no_pedido
             )
-        return Subitem_pedido(
+        return SubItemPedido(
             id=m.id,
             pedido_id=m.pedido_id,
             produto_id=m.produto_id,
@@ -30,13 +30,13 @@ class DjangoSubitem_pedidoRepository(ISubitem_pedidoRepository):
             estoque_no_pedido=m.estoque_no_pedido
         )
 
-    def find_by_id(self, id: int) -> Optional[Subitem_pedido]:
+    def find_by_id(self, id: int) -> Optional[SubItemPedido]:
         """
-        Busca Subitem_pedido por PK; retorna None se não existir.
+        Busca SubItemPedido por PK; retorna None se não existir.
         """
         try:
             m = SubItemPedidoModel.objects.get(pk=id)
-            return Subitem_pedido(
+            return SubItemPedido(
                 id=m.id,
                 pedido_id=m.pedido_id,
                 produto_id=m.produto_id,
@@ -46,12 +46,12 @@ class DjangoSubitem_pedidoRepository(ISubitem_pedidoRepository):
         except SubItemPedidoModel.DoesNotExist:
             return None
 
-    def list_all(self) -> List[Subitem_pedido]:
+    def list_all(self) -> List[SubItemPedido]:
         """
-        Retorna todos os Subitem_pedido como entidades de domínio.
+        Retorna todos os SubItemPedido como entidades de domínio.
         """
         return [
-            Subitem_pedido(
+            SubItemPedido(
                 id=m.id,
                 pedido_id=m.pedido_id,
                 produto_id=m.produto_id,

@@ -4,7 +4,7 @@ from django.contrib.auth.forms import UsernameField
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 
-from .models import Area, ConfiguracaoEstoque, Produto, Usuario
+from core.models import Area, ConfiguracaoEstoque, Produto, Usuario
 
 
 class AreaForm(forms.ModelForm):

@@ -1,63 +1,94 @@
-import json
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth import authenticate, login, logout, get_user_model
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.db.utils import IntegrityError
+from django.utils.dateparse import parse_date
+from django.utils.timezone import now
+from django.core.files.storage import FileSystemStorage
+from django.http import JsonResponse, HttpResponse
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from django.http import JsonResponse
+from django.db.models.functions import TruncMonth
+from django.core.mail import send_mail
+from django.core.serializers.json import DjangoJSONEncoder
+import xml.etree.ElementTree as ET
+import json
+import requests
+from openpyxl import Workbook
+from django.db.models import Q, Sum, Max, Min, F, DecimalField
+from django.views.decorators.http import require_GET
+from itertools import zip_longest
+from core.models import (
+    Produto, Fornecedor, Usuario, MovimentacaoEstoque,
+    Area, Pedido, ItemPedido, LogAcao,
+    ConfiguracaoEstoque)
+from ..forms.forms import AreaForm, ConfiguracaoEstoqueForm
+from django.db import transaction
+from django import template
+from django.shortcuts import render, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth.forms import PasswordChangeForm
+from ..forms.forms import ProfileForm
+from ..forms.forms import ProdutoForm
+import csv
+from datetime import date, datetime
+from django.shortcuts import render
+from core.models import SessionLog
+from django.core.paginator import Paginator
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, PatternFill
+from openpyxl.utils import get_column_letter
+from django.db.models import OuterRef, Subquery
+from core.models import SaidaProdutoPorPedido
 
-from core.application.dtos.session_log_dto import CreateSessionLogDTO
-from core.application.services.criar_session_log_service import SessionLogService
-from datetime import datetime, timedelta
 
-@require_POST
-def criar_session_log(request):
-    # 1) Parse JSON
-    try:
-        payload = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({'error': 'JSON inválido'}, status=400)
+register = template.Library()
+User = get_user_model()
 
-    # 2) Monta o DTO (precisa converter datas de string ISO para datetime)
-    try:
-        login_time = datetime.fromisoformat(payload['login_time'])
-    except Exception:
-        return JsonResponse({'error': "'login_time' inválido"}, status=400)
+PENDING_STATUSES = [
+    'aguardando_aprovacao',
+    'aprovado',
+    'separado',
+]
 
-    logout_time = None
-    if payload.get('logout_time'):
-        try:
-            logout_time = datetime.fromisoformat(payload['logout_time'])
-        except Exception:
-            return JsonResponse({'error': "'logout_time' inválido"}, status=400)
 
-    duration = None
-    if payload.get('duration'):
-        try:
-            # espera segundos ou ISO 8601? aqui tratamos como segundos
-            duration = timedelta(seconds=float(payload['duration']))
-        except Exception:
-            return JsonResponse({'error': "'duration' inválido"}, status=400)
+def lista_sessoes(request):
+    sessoes = SessionLog.objects.all()
+    return render(request, 'core/lista_sessoes.html', {'sessoes': sessoes})
 
-    dto = CreateSessionLogDTO(
-        user_id     = payload.get('user_id', 0),
-        session_key = payload.get('session_key', '').strip(),
-        login_time  = login_time,
-        logout_time = logout_time,
-        duration    = duration,
-        ip          = payload.get('ip'),
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+
+def exportar_sessoes_excel(request):
+    # busca todas as sessões
+    sessoes = SessionLog.objects.select_related('user').order_by('-login_time')
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Sessões de Usuário"
+
+    # cabeçalho
+    ws.append(["Usuário", "Login", "Logout", "Duração", "IP"])
+
+    # linhas de dados
+    for s in sessoes:
+        ws.append([
+            s.user.username,
+            s.login_time.strftime("%d/%m/%Y %H:%M:%S"),
+            s.logout_time.strftime("%d/%m/%Y %H:%M:%S") if s.logout_time else "—",
+            str(s.duration) if s.duration else "—",
+            s.ip or "—",
+        ])
+
+    # monta resposta
+    filename = f"sessoes_{date.today().isoformat()}.xlsx"
+    resp = HttpResponse(
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
+    resp["Content-Disposition"] = f'attachment; filename="{filename}"'
+    wb.save(resp)
+    return resp
 
-    # 3) Executa o serviço
-    service = SessionLogService()
-    try:
-        out = service.create(dto)
-    except ValueError as e:
-        return JsonResponse({'error': str(e)}, status=400)
-
-    # 4) Retorna JSON
-    return JsonResponse({
-        'id':           out.id,
-        'user_id':      out.user_id,
-        'session_key':  out.session_key,
-        'login_time':   out.login_time,
-        'logout_time':  out.logout_time,
-        'duration':     out.duration,
-        'ip':           out.ip,
-    }, status=201)

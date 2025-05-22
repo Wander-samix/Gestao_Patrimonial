@@ -3,7 +3,7 @@ from datetime import date
 from typing import List, Optional
 
 @dataclass
-class NFe:
+class Nfe:
     id: Optional[int]
     numero: str
     data_emissao: date

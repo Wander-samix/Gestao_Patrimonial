@@ -1,13 +1,13 @@
 from datetime import datetime
 from core.application.contracts.session_log_service_contract import ISessionLogService
 from core.application.dtos.session_log_dto import CreateSessionLogDTO, SessionLogDTO
-from core.domain.entities.session_log import Session_log
-from core.domain.repositories.session_log_repository import ISession_logRepository
-from infrastructure.repositories.django_session_log_repository import DjangoSession_logRepository
+from core.domain.entities.session_log import SessionLog
+from core.domain.repositories.session_log_repository import ISessionLogRepository
+from infrastructure.repositories.django_session_log_repository import DjangoSessionLogRepository
 
 class SessionLogService(ISessionLogService):
-    def __init__(self, repo: ISession_logRepository = None):
-        self.repo = repo or DjangoSession_logRepository()
+    def __init__(self, repo: ISessionLogRepository = None):
+        self.repo = repo or DjangoSessionLogRepository()
 
     def create(self, dto: CreateSessionLogDTO) -> SessionLogDTO:
         # validações básicas
@@ -22,7 +22,7 @@ class SessionLogService(ISessionLogService):
         if dto.logout_time and dto.logout_time < dto.login_time:
             raise ValueError("`logout_time` não pode ser anterior a `login_time`.")
 
-        entidade = Session_log(
+        entidade = SessionLog(
             user_id=dto.user_id,
             session_key=dto.session_key,
             login_time=dto.login_time,

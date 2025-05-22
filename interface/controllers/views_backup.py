@@ -23,7 +23,7 @@ from .models import (
     Produto, Fornecedor, Usuario, MovimentacaoEstoque,
     Area, Pedido, ItemPedido, LogAcao,
     ConfiguracaoEstoque)
-from .forms import AreaForm, ConfiguracaoEstoqueForm
+from ..forms.forms import AreaForm, ConfiguracaoEstoqueForm
 from django.db import transaction
 from django import template
 from django.shortcuts import render, redirect
@@ -31,8 +31,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
-from .forms import ProfileForm
-from .forms import ProdutoForm
+from ..forms.forms import ProfileForm
+from ..forms.forms import ProdutoForm
 import csv
 from datetime import date, datetime
 from django.shortcuts import render

@@ -1,6 +1,6 @@
 # core/templatetags/estoque_tags.py
 from django import template
-from core.domain.entities.pending_statuses import pending_statuses
+from core.domain.value_objects.pending_status import pending_statuses
 
 register = template.Library()
 

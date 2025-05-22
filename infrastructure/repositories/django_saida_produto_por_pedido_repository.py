@@ -1,10 +1,10 @@
 from typing import List, Optional
-from core.domain.entities.saida_produto_por_pedido import Saida_produto_por_pedido
-from core.domain.repositories.saida_produto_por_pedido_repository import ISaida_produto_por_pedidoRepository
+from core.domain.entities.saida_produto_por_pedido import SaidaProdutoPorPedido
+from core.domain.repositories.saida_produto_por_pedido_repository import ISaidaProdutoPorPedidoRepository
 from core.models import SaidaProdutoPorPedido as SaidaProdutoPorPedidoModel
 
-class DjangoSaida_produto_por_pedidoRepository(ISaida_produto_por_pedidoRepository):
-    def save(self, obj: Saida_produto_por_pedido) -> Saida_produto_por_pedido:
+class DjangoSaidaProdutoPorPedidoRepository(ISaidaProdutoPorPedidoRepository):
+    def save(self, obj: SaidaProdutoPorPedido) -> SaidaProdutoPorPedido:
         """
         Se obj.id existir, atualiza; caso contrário, cria novo registro.
         Retorna a entidade de domínio com o id gerado/atualizado.
@@ -22,7 +22,7 @@ class DjangoSaida_produto_por_pedidoRepository(ISaida_produto_por_pedidoReposito
                 pedido_id=obj.pedido_id,
                 quantidade=obj.quantidade
             )
-        return Saida_produto_por_pedido(
+        return SaidaProdutoPorPedido(
             id=m.id,
             produto_id=m.produto_id,
             pedido_id=m.pedido_id,
@@ -30,13 +30,13 @@ class DjangoSaida_produto_por_pedidoRepository(ISaida_produto_por_pedidoReposito
             data_saida=m.data_saida
         )
 
-    def find_by_id(self, id: int) -> Optional[Saida_produto_por_pedido]:
+    def find_by_id(self, id: int) -> Optional[SaidaProdutoPorPedido]:
         """
-        Busca Saida_produto_por_pedido por PK; retorna None se não existir.
+        Busca SaidaProdutoPorPedido por PK; retorna None se não existir.
         """
         try:
             m = SaidaProdutoPorPedidoModel.objects.get(pk=id)
-            return Saida_produto_por_pedido(
+            return SaidaProdutoPorPedido(
                 id=m.id,
                 produto_id=m.produto_id,
                 pedido_id=m.pedido_id,
@@ -46,12 +46,12 @@ class DjangoSaida_produto_por_pedidoRepository(ISaida_produto_por_pedidoReposito
         except SaidaProdutoPorPedidoModel.DoesNotExist:
             return None
 
-    def list_all(self) -> List[Saida_produto_por_pedido]:
+    def list_all(self) -> List[SaidaProdutoPorPedido]:
         """
         Retorna todas as Saidas de produto por pedido como entidades de domínio.
         """
         return [
-            Saida_produto_por_pedido(
+            SaidaProdutoPorPedido(
                 id=m.id,
                 produto_id=m.produto_id,
                 pedido_id=m.pedido_id,

@@ -1,12 +1,12 @@
 from core.application.contracts.subitem_pedido_service_contract import ISubitemPedidoService
 from core.application.dtos.subitem_pedido_dto import CreateSubitemPedidoDTO, SubitemPedidoDTO
-from core.domain.entities.subitem_pedido import Subitem_pedido
-from core.domain.repositories.subitem_pedido_repository import ISubitem_pedidoRepository
-from infrastructure.repositories.django_subitem_pedido_repository import DjangoSubitem_pedidoRepository
+from core.domain.entities.subitem_pedido import SubItemPedido
+from core.domain.repositories.subitem_pedido_repository import ISubItemPedidoRepository
+from infrastructure.repositories.django_subitem_pedido_repository import DjangoSubItemPedidoRepository
 
 class SubitemPedidoService(ISubitemPedidoService):
-    def __init__(self, repo: ISubitem_pedidoRepository = None):
-        self.repo = repo or DjangoSubitem_pedidoRepository()
+    def __init__(self, repo: ISubItemPedidoRepository = None):
+        self.repo = repo or DjangoSubItemPedidoRepository()
 
     def create(self, dto: CreateSubitemPedidoDTO) -> SubitemPedidoDTO:
         # validações simples (já estão no domínio, mas podemos reforçar aqui)
@@ -20,7 +20,7 @@ class SubitemPedidoService(ISubitemPedidoService):
             raise ValueError("`estoque_no_pedido` deve ser >= 0, se informado.")
 
         # monta a entidade de domínio
-        entidade = Subitem_pedido(
+        entidade = SubItemPedido(
             pedido_id=dto.pedido_id,
             produto_id=dto.produto_id,
             quantidade=dto.quantidade,

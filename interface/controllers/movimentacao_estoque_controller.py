@@ -1,43 +1,76 @@
-import json
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth import authenticate, login, logout, get_user_model
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.db.utils import IntegrityError
+from django.utils.dateparse import parse_date
+from django.utils.timezone import now
+from django.core.files.storage import FileSystemStorage
+from django.http import JsonResponse, HttpResponse
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from django.http import JsonResponse
-from core.application.dtos.movimentacao_estoque_dto import CreateMovimentacaoEstoqueDTO
-from core.application.services.criar_movimentacao_estoque_service import MovimentacaoEstoqueService
+from django.db.models.functions import TruncMonth
+from django.core.mail import send_mail
+from django.core.serializers.json import DjangoJSONEncoder
+import xml.etree.ElementTree as ET
+import json
+import requests
+from openpyxl import Workbook
+from django.db.models import Q, Sum, Max, Min, F, DecimalField
+from django.views.decorators.http import require_GET
+from itertools import zip_longest
+from core.models import (
+    Produto, Fornecedor, Usuario, MovimentacaoEstoque,
+    Area, Pedido, ItemPedido, LogAcao,
+    ConfiguracaoEstoque)
+from ..forms.forms import AreaForm, ConfiguracaoEstoqueForm
+from django.db import transaction
+from django import template
+from django.shortcuts import render, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth.forms import PasswordChangeForm
+from ..forms.forms import ProfileForm
+from ..forms.forms import ProdutoForm
+import csv
+from datetime import date, datetime
+from django.shortcuts import render
+from core.models import SessionLog
+from django.core.paginator import Paginator
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, PatternFill
+from openpyxl.utils import get_column_letter
+from django.db.models import OuterRef, Subquery
+from core.models import SaidaProdutoPorPedido
 
-@require_POST
-def criar_movimentacao_estoque(request):
-    # 1) Parse do JSON
-    try:
-        payload = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({'error': 'JSON inválido'}, status=400)
 
-    # 2) DTO de entrada
-    dto = CreateMovimentacaoEstoqueDTO(
-        tipo=payload.get('tipo', ''),
-        data=payload.get('data'),
-        usuario_id=payload.get('usuario_id'),
-        quantidade=payload.get('quantidade'),
-        produto_id=payload.get('produto_id'),
-        nota_fiscal_id=payload.get('nota_fiscal_id'),
-        cliente_id=payload.get('cliente_id'),
-    )
+register = template.Library()
+User = get_user_model()
 
-    # 3) Chama serviço
-    service = MovimentacaoEstoqueService()
-    try:
-        out = service.create(dto)
-    except ValueError as e:
-        return JsonResponse({'error': str(e)}, status=400)
+PENDING_STATUSES = [
+    'aguardando_aprovacao',
+    'aprovado',
+    'separado',
+]
 
-    # 4) Serializa datetime e retorna
-    return JsonResponse({
-        'id': out.id,
-        'tipo': out.tipo,
-        'data': out.data.isoformat(),
-        'usuario_id': out.usuario_id,
-        'quantidade': out.quantidade,
-        'produto_id': out.produto_id,
-        'nota_fiscal_id': out.nota_fiscal_id,
-        'cliente_id': out.cliente_id,
-    }, status=201)
+
+def registrar_movimentacao(request):
+    if request.method == 'POST':
+        codigo = request.POST.get('codigo_barras')
+        tipo = request.POST.get('tipo')
+        quantidade = int(request.POST.get('quantidade'))
+        try:
+            produto = Produto.objects.get(codigo_barras=codigo)
+        except Produto.DoesNotExist:
+            return JsonResponse({'erro': 'Produto não encontrado'}, status=404)
+        if tipo == "saida" and produto.quantidade < quantidade:
+            return JsonResponse({'erro': 'Estoque insuficiente'}, status=400)
+        produto.quantidade = produto.quantidade + quantidade if tipo == "entrada" else produto.quantidade - quantidade
+        produto.save()
+        MovimentacaoEstoque.objects.create(tipo=tipo, usuario=request.user, quantidade=quantidade, produto=produto)
+        return JsonResponse({'mensagem': 'Movimentação registrada com sucesso'})
+    return JsonResponse({'erro': 'Método inválido'}, status=405)
+
+@login_required
+
