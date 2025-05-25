@@ -1,6 +1,9 @@
-from django.shortcuts import render, redirect, get_object_or_404
-from django.urls import reverse
-from django.contrib import messages
+# interface/controllers/nfe_controller.py
+
+import xml.etree.ElementTree as ET
+from django.shortcuts   import render, redirect, get_object_or_404
+from django.urls        import reverse
+from django.contrib     import messages
 from django.contrib.auth.decorators import login_required
 
 from core.models import NFe
@@ -40,3 +43,46 @@ def excluir_nfe(request, id):
     nfe.delete()
     messages.success(request, 'NFe excluído com sucesso.')
     return redirect(reverse('lista_nfes'))
+
+
+@login_required
+def upload_nfe(request):
+    """
+    GET: mostra o form de upload (em core/upload_nfe.html)
+    POST: parseia o XML, extrai produtos e renderiza core/produtos_extraidos.html
+    """
+    if request.method == 'GET':
+        return render(request, 'core/upload_nfe.html')
+
+    # agora buscamos o arquivo pelo name="arquivo" do seu form
+    arquivo = request.FILES.get('arquivo')
+    if not arquivo:
+        messages.error(request, 'Selecione um XML de NFe para importar.')
+        return redirect(reverse('upload_nfe'))
+
+    try:
+        tree = ET.parse(arquivo)
+        root = tree.getroot()
+
+        produtos = []
+        # percorre os detalhes do XML (ajuste o XPath se necessário)
+        for det in root.findall('.//det'):
+            prod = det.find('prod')
+            produtos.append({
+                'codigo_barras':   prod.findtext('cProd', ''),
+                'descricao':       prod.findtext('xProd', ''),
+                'fornecedor_id':   prod.findtext('cProd', ''),  # ajuste conforme seu modelo
+                'lote':            '',
+                'validade':        '',
+                'quantidade':      prod.findtext('qCom', ''),
+                'preco_unitario':  prod.findtext('vUnCom', ''),
+                'status':          'ativo',
+            })
+
+        return render(request, 'core/produtos_extraidos.html', {
+            'produtos': produtos
+        })
+
+    except ET.ParseError:
+        messages.error(request, 'XML inválido.')
+        return redirect(reverse('upload_nfe'))
