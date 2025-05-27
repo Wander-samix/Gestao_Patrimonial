@@ -50,7 +50,7 @@
         {% if user.papel != 'operador' %}
           <button id="delete-selected" class="btn btn-outline-danger">Excluir Selecionados</button>
           <a href="{% url 'upload_nfe' %}" class="btn btn-outline-primary">Importar NFe</a>
-          <a href="#" class="btn btn-success" onclick="adicionarLinhaProduto()">+ Produto</a>
+          <a href="{% url 'novo_produto' %}" class="btn btn-success">+ Produto</a>
         {% endif %}
       </div>
     </div>

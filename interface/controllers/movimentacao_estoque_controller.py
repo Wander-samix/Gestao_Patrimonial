@@ -2,8 +2,30 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-
 from core.models import MovimentacaoEstoque
+from django.http                import HttpResponse
+import csv
+
+
+@login_required
+def exportar_dashboard_excel(request):
+    movimentacoes = MovimentacaoEstoque.objects.select_related('produto', 'usuario')\
+                                               .order_by('-data')
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="movimentacoes_estoque.csv"'
+    writer = csv.writer(response)
+    writer.writerow(['Tipo', 'Produto', 'Quantidade', 'Usuário', 'Data/Hora'])
+    for m in movimentacoes:
+        writer.writerow([
+            m.get_tipo_display(),
+            m.produto.descricao,
+            m.quantidade,
+            m.usuario.username,
+            m.data.strftime('%d/%m/%Y %H:%M'),
+        ])
+    return response
+
+
 
 
 @login_required

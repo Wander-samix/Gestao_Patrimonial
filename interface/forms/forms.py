@@ -4,7 +4,9 @@ from django.contrib.auth.forms import UsernameField
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 
-from core.models import Area, ConfiguracaoEstoque, Produto, Usuario
+from core.models import Area, ConfiguracaoEstoque, Produto
+# Substituímos o import direto de Usuario pelo get_user_model()
+Usuario = get_user_model()
 
 
 class AreaForm(forms.ModelForm):
@@ -44,7 +46,7 @@ class ProfileForm(forms.ModelForm):
             'placeholder': 'usuario@dominio.com',
             'autocomplete': 'email'
         }),
-        error_messages={'invalid': 'Insira um e‑mail válido.'}
+        error_messages={'invalid': 'Insira um e-mail válido.'}
     )
 
     password1 = forms.CharField(
@@ -86,12 +88,12 @@ class ProfileForm(forms.ModelForm):
             validate_email(email)
         except ValidationError:
             raise ValidationError(
-                'Por favor, informe um e‑mail no formato correto.'
+                'Por favor, informe um e-mail no formato correto.'
             )
         domain = email.split('@')[1]
         if '.' not in domain:
             raise ValidationError(
-                'O domínio do e‑mail deve conter um ponto (ex: .com, .br).'
+                'O domínio do e-mail deve conter um ponto (ex: .com, .br).'
             )
         return email.lower()
 
@@ -136,3 +138,7 @@ class ProdutoForm(forms.ModelForm):
             'preco_unitario': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'status':         forms.Select   (attrs={'class': 'form-select'}),
         }
+
+
+# Alias para o controller que importa UsuarioForm
+UsuarioForm = ProfileForm
