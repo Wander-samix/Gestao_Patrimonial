@@ -41,8 +41,10 @@
                     {% if user.papel == 'admin' %}
                     <li class="nav-item">
                         <a class="nav-link {% if '/fornecedores/' in request.path %}active{% endif %}"
-                           href="{% url 'fornecedores' %}">Fornecedores</a>
+                           href="{% url 'lista_fornecedores' %}">Fornecedores</a>
                     </li>
+                    {% endif %}
+                    {% if user.papel == 'admin' %}
                     <li class="nav-item">
                         <a class="nav-link {% if '/usuarios/' in request.path %}active{% endif %}"
                            href="{% url 'lista_usuarios' %}">Usuários</a>
@@ -56,7 +58,8 @@
                     {% endif %}
                     {% if user.papel == 'admin' %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'configuracoes' %}">Configurações</a>
+                        <a class="nav-link {% if '/configuracoes/' in request.path %}active{% endif %}"
+                           href="{% url 'configuracoes' %}">Configurações</a>
                     </li>
                     {% endif %}
                 </ul>
@@ -70,6 +73,7 @@
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                             <li>
+                                {# Agora apontamos para a view de editar usuário, passando o próprio ID #}
                                 <a class="dropdown-item" href="{% url 'editar_usuario' user.id %}">
                                     <i class="bi bi-person-lines-fill me-1"></i>
                                     Editar Cadastro

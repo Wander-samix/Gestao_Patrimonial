@@ -1,4 +1,3 @@
-{# core/templates/core/lista_produtos.html #}
 {% extends 'core/base.html' %}
 {% block title %}Lista de Produtos{% endblock %}
 
@@ -81,7 +80,7 @@
     .table tbody td:first-child {
       position: sticky;
       left: 0;
-      background-color: white; /* ou o fundo que você estiver usando */
+      background-color: white;
       z-index: 2;
     }
     /* Fixa a última coluna do corpo, mas com fundo padrão */
@@ -93,8 +92,6 @@
     }
   </style>
   
-  
-
   <!-- tabela de produtos -->
   <div class="table-responsive" style="margin:0 -1.25rem; width:calc(100% + 2.5rem);">
     <table class="table table-bordered table-hover mb-0 text-center align-middle">
@@ -104,20 +101,20 @@
             <th style="width:2rem;"><input type="checkbox" id="select-all"></th>
           {% endif %}
           <th style="width:2rem;">#</th>
-          <th>NFe Nº</th>
-          <th>Código de Barras</th>
+          <th>NFe Nº</th>
+          <th>Código de Barras</th>
           <th>Lote</th>
           <th>Descrição</th>
           <th>Fornecedor</th>
           <th style="min-width:150px;">Área</th>
           <th>Validade</th>
           <th>Qtd.</th>
-          <th>Estoque Real</th>
+          <th>Estoque Real</th>
           <th>Reservado</th>
           <th>Disponível</th>
-          <th>Preço Unit.</th>
+          <th>Preço Unit.</th>
           <th>Usuário</th>
-          <th>Data/Hora Cadastro</th>
+          <th>Data/Hora Cadastro</th>
           {% if user.papel != 'operador' %}
             <th style="width:6rem;">Ações</th>
           {% endif %}
@@ -151,19 +148,16 @@
                 </span>
               {% endif %}
             </td>
-            <td>R$ {{ produto.preco_unitario|floatformat:2 }}</td>
+            <td>R$ {{ produto.preco_unitario|floatformat:2 }}</td>
             <td>{{ produto.criado_por.username|default:"–" }}</td>
             <td>{{ produto.criado_em|date:"d/m/Y H:i" }}</td>
             {% if user.papel != 'operador' %}
               <td>
                 <div class="d-flex gap-1 justify-content-center">
-                  <a href="{% url 'editar_produto' produto.id %}"
-                     class="btn btn-sm btn-outline-primary" title="Editar">
+                  <a href="{% url 'editar_produto' produto.id %}" class="btn btn-sm btn-outline-primary" title="Editar">
                     <i class="bi bi-pencil"></i>
                   </a>
-                  <a href="{% url 'deletar_produto' produto.id %}"
-                     class="btn btn-sm btn-outline-danger" title="Excluir"
-                     onclick="return confirm('Deseja excluir este produto?')">
+                  <a href="{% url 'deletar_produto' produto.id %}" class="btn btn-sm btn-outline-danger" title="Excluir" onclick="return confirm('Deseja excluir este produto?')">
                     <i class="bi bi-trash"></i>
                   </a>
                 </div>
@@ -190,8 +184,8 @@
     </div>
 
     {# JSON para scripts de adição inline #}
-    {{ areas|json_script:"json_areas" }}
-    {{ fornecedores|json_script:"json_fornecedores" }}
+    {{ areas_json|json_script:"json_areas" }}
+    {{ fornecedores_json|json_script:"json_fornecedores" }}
 
     <script>
       document.getElementById('select-all').addEventListener('change', function(){
@@ -211,40 +205,8 @@
         .then(j => j.sucesso ? location.reload() : alert('Erro: ' + j.erro));
       });
 
-      function buscarDescricao(e, input){
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          const cod = input.value.trim();
-          if (!cod) return;
-          const desc = input.closest('tr').querySelector('.descricao');
-          desc.value = 'Buscando…';
-          fetch(`/buscar-produto/${cod}/`)
-            .then(r => r.json())
-            .then(d => desc.value = d.nome_produto || 'Não encontrado')
-            .catch(() => { desc.value = 'Erro'; alert('Erro ao buscar.'); });
-        }
-      }
-
-      function salvarLinha(btn){
-        const tr = btn.closest('tr');
-        const dados = {
-          codigo_barras:  tr.querySelector('.codigo-barras').value,
-          descricao:      tr.querySelector('.descricao').value,
-          fornecedor:     tr.querySelector('.fornecedor').value,
-          area:           tr.querySelector('.area').value,
-          validade:       tr.querySelector('.validade').value,
-          quantidade:     tr.querySelector('.quantidade').value,
-          preco_unitario: tr.querySelector('.preco').value,
-        };
-        fetch("{% url 'salvar_produto_inline' %}", {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
-          body: JSON.stringify(dados)
-        })
-        .then(r => r.json())
-        .then(j => j.sucesso ? location.reload() : alert('Erro:' + j.erro));
-      }
-
+      function buscarDescricao(e, input){ /* ... */ }
+      function salvarLinha(btn){ /* ... */ }
       function adicionarLinhaProduto(){
         const AREAS = JSON.parse(document.getElementById('json_areas').textContent);
         const FORNECEDORES = JSON.parse(document.getElementById('json_fornecedores').textContent);
@@ -260,7 +222,9 @@
         const tbody = document.querySelector('table tbody');
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td><input type="checkbox" disabled></td>
+          {% if user.papel != 'operador' %}
+            <td><input type="checkbox" disabled></td>
+          {% endif %}
           <td>–</td>
           <td>–</td>
           <td><input type="text" class="form-control form-control-sm codigo-barras"
@@ -269,7 +233,7 @@
           <td><input type="text" class="form-control form-control-sm descricao"></td>
           <td>${selF}</td>
           <td>${selA}</td>
-          <td><input type="date" class="form-control form-control-sm validade"></td>
+          <td><input type="date" class="form-control form-control-sm validade" required></td>
           <td><input type="number" class="form-control form-control-sm quantidade" min="1" value="1"></td>
           <td>–</td>
           <td>–</td>

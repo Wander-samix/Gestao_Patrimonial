@@ -4,16 +4,18 @@
 <div class="container mt-5">
     <h3 class="mb-4">Produtos extraídos da Nota Fiscal</h3>
     {% if produtos %}
-    <form method="post" action="{% url 'cadastro_produtos' %}">
+    <form method="post" action="{% url 'upload_nfe' %}">
         {% csrf_token %}
+        <input type="hidden" name="nfe_numero" value="{{ nfe_numero }}">
         <table class="table table-bordered table-striped">
             <thead>
                 <tr>
                     <th>Código de Barras</th>
                     <th>Descrição</th>
-                    <th>Fornecedor ID</th>
+                    <th>Fornecedor *</th>
+                    <th>Área</th>
                     <th>Lote</th>
-                    <th>Validade</th>
+                    <th>Validade *</th>
                     <th>Quantidade</th>
                     <th>Preço Unitário</th>
                     <th>Status</th>
@@ -22,13 +24,42 @@
             <tbody>
                 {% for produto in produtos %}
                 <tr>
-                    <td><input type="text" name="codigo_barras" value="{{ produto.codigo_barras }}" class="form-control"></td>
-                    <td><input type="text" name="descricao" value="{{ produto.descricao }}" class="form-control"></td>
-                    <td><input type="number" name="fornecedor_id" value="{{ produto.fornecedor_id }}" class="form-control"></td>
-                    <td><input type="text" name="lote" value="{{ produto.lote }}" class="form-control"></td>
-                    <td><input type="date" name="validade" value="{{ produto.validade }}" class="form-control"></td>
-                    <td><input type="number" name="quantidade" value="{{ produto.quantidade }}" class="form-control"></td>
-                    <td><input type="number" step="0.01" name="preco_unitario" value="{{ produto.preco_unitario }}" class="form-control"></td>
+                    <td>
+                        <input type="hidden" name="codigo_barras" value="{{ produto.codigo_barras }}">
+                        {{ produto.codigo_barras }}
+                    </td>
+                    <td>
+                        <input type="hidden" name="descricao" value="{{ produto.descricao }}">
+                        {{ produto.descricao }}
+                    </td>
+                    <td>
+                        <select name="fornecedor" required class="form-select">
+                            <option value="">-- selecione --</option>
+                            {% for f in fornecedores %}
+                            <option value="{{ f.id }}" {% if f.id|stringformat:"s" == produto.fornecedor_id|stringformat:"s" %}selected{% endif %}>{{ f.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td>
+                        <select name="area" class="form-select">
+                            <option value="">-- selecione --</option>
+                            {% for a in areas %}
+                            <option value="{{ a.id }}" {% if a.id|stringformat:"s" == produto.area_id|stringformat:"s" %}selected{% endif %}>{{ a.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td>
+                        <input type="text" name="lote" value="{{ produto.lote }}" class="form-control">
+                    </td>
+                    <td>
+                        <input type="date" name="validade" value="{{ produto.validade }}" class="form-control" required>
+                    </td>
+                    <td>
+                        <input type="number" name="quantidade" value="{{ produto.quantidade }}" class="form-control">
+                    </td>
+                    <td>
+                        <input type="number" step="0.01" name="preco_unitario" value="{{ produto.preco_unitario }}" class="form-control">
+                    </td>
                     <td>
                         <select name="status" class="form-select">
                             <option value="ativo" {% if produto.status == 'ativo' %}selected{% endif %}>ativo</option>
