@@ -1,9 +1,8 @@
-from datetime import datetime, date
+from datetime import datetime
 from io import BytesIO
 
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
-from django.utils.dateparse import parse_date
 from django.utils.timezone import now
 from django.http import HttpResponse
 from django.db.models import Sum, F, DecimalField
@@ -26,9 +25,12 @@ PENDING_STATUSES = [
 
 @login_required
 def dashboard(request):
-    # 1) Parâmetro 'data' (YYYY-MM-DD); usa hoje se ausente ou inválido
-    data_str = request.GET.get('data')
-    data_mov = parse_date(data_str) or now().date()
+    # 1) Parâmetro 'data' (YYYY-MM-DD); usa hoje se ausente, inválido ou não for str
+    data_str = request.GET.get('data', '')
+    try:
+        data_mov = datetime.strptime(data_str, '%Y-%m-%d').date()
+    except (TypeError, ValueError):
+        data_mov = now().date()
 
     # 2) Contagens básicas
     produtos_count = Produto.objects.count()
@@ -100,8 +102,11 @@ def exportar_dashboard_excel(request):
       - Logs do dia
     """
     # reusar mesmo cálculo de data do dashboard
-    data_str = request.GET.get('data')
-    data_mov = parse_date(data_str) or now().date()
+    data_str = request.GET.get('data', '')
+    try:
+        data_mov = datetime.strptime(data_str, '%Y-%m-%d').date()
+    except (TypeError, ValueError):
+        data_mov = now().date()
 
     # recalc indicadores
     produtos_count = Produto.objects.count()
@@ -191,3 +196,49 @@ def exportar_dashboard_excel(request):
     )
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     return response
+
+@login_required
+def exportar_estoque_por_area_excel(request):
+    """
+    Gera um Excel com o estoque real por área.
+    """
+    # 1) calcula data_mov igual às outras views
+    from datetime import datetime
+    data_str = request.GET.get('data', '')
+    try:
+        data_mov = datetime.strptime(data_str, '%Y-%m-%d').date()
+    except (TypeError, ValueError):
+        data_mov = now().date()
+
+    # 2) queryset de áreas com soma do estoque real
+    from django.db.models import Sum
+    areas = (
+        Produto.objects
+            .values('area__nome')
+            .annotate(
+                total_real=Sum(
+                    F('quantidade') * F('preco_unitario'),
+                    output_field=DecimalField(max_digits=20, decimal_places=2)
+                )
+            )
+    )
+
+    # 3) monta o Workbook igual aos outros
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Estoque por Área"
+    ws.append(["Área", "Estoque Real Total (R$)"])
+    for a in areas:
+        ws.append([a['area__nome'], float(a['total_real'] or 0)])
+
+    # 4) resposta
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    filename = f"estoque_por_area_{data_mov.strftime('%Y%m%d')}.xlsx"
+    resp = HttpResponse(
+        output.read(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    resp["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return resp

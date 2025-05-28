@@ -1,15 +1,27 @@
 # interface/controllers/usuario_controller.py
-from django.shortcuts       import render, redirect, get_object_or_404
-from django.contrib         import messages
+
+import json
+from datetime import datetime
+from io import BytesIO
+
+from django.shortcuts            import render, redirect, get_object_or_404
+from django.contrib              import messages
+from django.contrib.auth         import get_user_model, update_session_auth_hash
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.urls            import reverse
-from django.contrib.auth    import get_user_model, update_session_auth_hash
-from interface.forms.forms  import UsuarioForm
-from interface.forms.forms  import ProfileForm
-from django.http        import JsonResponse
+from django.http                 import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.db.models.functions  import TruncMonth
+from django.db.models            import Count
+from django.utils.crypto         import get_random_string
+from openpyxl                    import Workbook
+
+from interface.forms.forms       import UsuarioForm, ProfileForm
+from core.models                 import Area, MovimentacaoEstoque
 
 User = get_user_model()
+
+# Senha padrão para novos usuários (oculta; não retornamos ao front)
+DEFAULT_PASSWORD = "senha123"
 
 
 def is_admin(user):
@@ -17,24 +29,29 @@ def is_admin(user):
 
 
 @login_required
-@user_passes_test(lambda u: u.papel == 'admin')
+@user_passes_test(is_admin)
 def lista_usuarios(request):
     usuarios = User.objects.all()
+    areas    = Area.objects.all()
     return render(request, 'core/usuarios.html', {
-        'usuarios': usuarios
+        'usuarios': usuarios,
+        'areas':    areas,
     })
 
+
 @login_required
-@user_passes_test(lambda u: u.papel == 'admin')
+@user_passes_test(is_admin)
 def novo_usuario(request):
     if request.method == 'POST':
         form = UsuarioForm(request.POST)
         if form.is_valid():
             user = form.save(commit=False)
-            if form.cleaned_data['password']:
-                user.set_password(form.cleaned_data['password'])
+            # usa a senha informada ou a default
+            pwd = form.cleaned_data.get('password1') or DEFAULT_PASSWORD
+            user.set_password(pwd)
             user.save()
             form.save_m2m()
+            # você pode enviar email aqui, se quiser
             messages.success(request, "Usuário criado com sucesso.")
             return redirect('lista_usuarios')
     else:
@@ -43,16 +60,18 @@ def novo_usuario(request):
         'form': form
     })
 
+
 @login_required
-@user_passes_test(lambda u: u.papel == 'admin')
+@user_passes_test(is_admin)
 def editar_usuario(request, id):
     usuario = get_object_or_404(User, pk=id)
     if request.method == 'POST':
         form = UsuarioForm(request.POST, instance=usuario)
         if form.is_valid():
             user = form.save(commit=False)
-            if form.cleaned_data['password']:
-                user.set_password(form.cleaned_data['password'])
+            pwd = form.cleaned_data.get('password1')
+            if pwd:
+                user.set_password(pwd)
             user.save()
             form.save_m2m()
             messages.success(request, "Usuário atualizado com sucesso.")
@@ -64,109 +83,125 @@ def editar_usuario(request, id):
         'usuario': usuario
     })
 
+
 @login_required
-@user_passes_test(lambda u: u.papel == 'admin')
+@user_passes_test(is_admin)
 def excluir_usuario(request, id):
     usuario = get_object_or_404(User, pk=id)
     usuario.delete()
     messages.success(request, "Usuário excluído com sucesso.")
     return redirect('lista_usuarios')
 
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.urls import reverse
-from django.contrib.auth import get_user_model
-
-User = get_user_model()
-
-def is_admin(user):
-    return user.is_authenticated and user.papel == 'admin'
-
-@login_required
-@user_passes_test(is_admin)
-def lista_usuarios(request):
-    usuarios = User.objects.all()
-    return render(request, 'core/usuarios.html', {
-        'usuarios': usuarios,
-    })
-
-@login_required
-@user_passes_test(is_admin)
-def novo_usuario(request):
-    # sua lógica de criação...
-    pass
-
-@login_required
-@user_passes_test(is_admin)
-def editar_usuario(request, id):
-    # sua lógica de edição...
-    pass
-
-@login_required
-@user_passes_test(is_admin)
-def ativar_usuario(request, id):
-    user = get_object_or_404(User, id=id)
-    user.ativo = True
-    user.save()
-    messages.success(request, f"Usuário {user.username} ativado.")
-    return redirect('lista_usuarios')
-
-@login_required
-@user_passes_test(is_admin)
-def desativar_usuario(request, id):
-    user = get_object_or_404(User, id=id)
-    user.ativo = False
-    user.save()
-    messages.success(request, f"Usuário {user.username} desativado.")
-    return redirect('lista_usuarios')
 
 @login_required
 @user_passes_test(is_admin)
 def deletar_usuario(request, id):
-    user = get_object_or_404(User, id=id)
-    username = user.username
-    user.delete()
+    usuario = get_object_or_404(User, pk=id)
+    username = usuario.username
+    usuario.delete()
     messages.success(request, f"Usuário {username} excluído com sucesso.")
     return redirect('lista_usuarios')
 
+
+@login_required
+@user_passes_test(is_admin)
+def ativar_usuario(request, id):
+    usuario = get_object_or_404(User, pk=id)
+    usuario.ativo = True
+    usuario.save()
+    messages.success(request, f"Usuário {usuario.username} ativado.")
+    return redirect('lista_usuarios')
+
+
+@login_required
+@user_passes_test(is_admin)
+def desativar_usuario(request, id):
+    usuario = get_object_or_404(User, pk=id)
+    usuario.ativo = False
+    usuario.save()
+    messages.success(request, f"Usuário {usuario.username} desativado.")
+    return redirect('lista_usuarios')
+
+
 @login_required
 def editar_perfil(request):
-    """
-    Permite ao usuário logado alterar seu username, email e senha.
-    """
     form = ProfileForm(request.POST or None, instance=request.user)
     if request.method == 'POST' and form.is_valid():
         form.save()
-        # Se a senha for alterada, mantém o usuário logado:
         update_session_auth_hash(request, request.user)
         messages.success(request, "Perfil atualizado com sucesso.")
         return redirect('editar_perfil')
     return render(request, 'core/editar_perfil.html', {
         'form': form,
     })
-    
+
+
 @csrf_exempt
 @login_required
 def salvar_usuario_inline(request):
     """
-    Recebe JSON via POST e cria um novo usuário.
+    Chamada AJAX: cria usuário e retorna JSON.
     """
     if request.method != 'POST':
         return JsonResponse({'sucesso': False, 'erro': 'Método não permitido'}, status=405)
 
-    try:
-        data = json.loads(request.body)
-        form = UsuarioForm(data)
-        if not form.is_valid():
-            return JsonResponse({'sucesso': False, 'erro': form.errors}, status=400)
-        usuario = form.save(commit=False)
-        usuario.set_password(data.get('password') or User.objects.make_random_password())
-        usuario.save()
-        return JsonResponse({
-            'sucesso': True,
-            'id': usuario.id,
-            'username': usuario.username,
-        })
-    except Exception as e:
-        return JsonResponse({'sucesso': False, 'erro': str(e)}, status=500)
+    data = json.loads(request.body)
+    form = UsuarioForm(data)
+    if not form.is_valid():
+        # form.errors é um dict: { campo: [erros], ... }
+        return JsonResponse({'sucesso': False, 'erro': form.errors}, status=400)
+
+    # cria sem expor a senha no JSON
+    usuario = form.save(commit=False)
+    pwd = data.get('password1') or DEFAULT_PASSWORD
+    usuario.set_password(pwd)
+    usuario.save()
+    form.save_m2m()
+
+    return JsonResponse({
+        'sucesso': True,
+        'id':       usuario.id,
+        'username': usuario.username,
+    })
+
+
+@login_required
+@user_passes_test(is_admin)
+def exportar_sessoes_excel(request):
+    sessoes = (
+        MovimentacaoEstoque.objects
+            .annotate(mes=TruncMonth('data'))
+            .values('mes')
+            .annotate(total=Count('id'))
+            .order_by('mes')
+    )
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Sessões por Mês"
+    ws.append(["Mês", "Total de Sessões"])
+    for s in sessoes:
+        ws.append([s['mes'].strftime("%Y-%m"), s['total']])
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    hoje = datetime.now().strftime("%Y%m%d")
+    filename = f"sessoes_por_mes_{hoje}.xlsx"
+    resp = HttpResponse(
+        output.read(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    resp["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return resp
+
+@login_required
+def editar_perfil(request):
+    form = ProfileForm(request.POST or None, instance=request.user)
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        update_session_auth_hash(request, request.user)
+        messages.success(request, "Perfil atualizado com sucesso.")
+        return redirect('editar_perfil')
+    return render(request, 'core/editar_perfil.html', {
+        'form': form,
+    })

@@ -24,6 +24,9 @@ from django.utils.dateparse      import parse_date
 from django.utils.timezone       import now
 from django.core.mail            import send_mail
 from django.core.serializers.json import DjangoJSONEncoder
+from django.conf import settings
+import requests
+
 
 from openpyxl                    import Workbook
 from openpyxl.styles             import Font, Alignment, PatternFill
@@ -81,7 +84,6 @@ def logout_view(request):
     logout(request)
     return redirect('login')
 
-
 @login_required
 def lista_produtos(request):
     busca         = request.GET.get('busca', '').strip()
@@ -91,6 +93,7 @@ def lista_produtos(request):
     ordem         = request.GET.get('ordem', 'asc')
     somente_baixo = request.GET.get('estoque_baixo') == '1'
 
+    # 1) filtros iniciais
     produtos = Produto.objects.all()
     if busca:
         produtos = produtos.filter(
@@ -105,42 +108,68 @@ def lista_produtos(request):
         exp = f"-{ordenar_por}" if ordem == 'desc' else ordenar_por
         produtos = produtos.order_by(exp)
 
+    # 2) estoque mínimo (%), por área
     configs = ConfiguracaoEstoque.objects.all()
-    minimo_por_area = {cfg.area_id: cfg.estoque_minimo for cfg in configs if cfg.area_id}
+    minimo_pct_por_area = {
+        cfg.area_id: cfg.estoque_minimo
+        for cfg in configs
+        if cfg.area_id
+    }
+    DEFAULT_MINIMO_PCT = 50
+
     hoje = now().date()
 
-    pendentes = ItemPedido.objects.filter(
-        produto__codigo_barras__in=produtos.values_list('codigo_barras', flat=True),
-        produto__area_id__in=produtos.values_list('area_id', flat=True),
-        pedido__status__in=PENDING_STATUSES
-    ).filter(pedido__data_solicitacao__date__lte=hoje)
+    # 3) reservas pendentes até hoje
+    pendentes = (
+        ItemPedido.objects
+            .filter(
+                produto__codigo_barras__in=produtos.values_list('codigo_barras', flat=True),
+                produto__area_id__in=produtos.values_list('area_id', flat=True),
+                pedido__status__in=PENDING_STATUSES,
+                pedido__data_solicitacao__date__lte=hoje
+            )
+            .values('produto__codigo_barras', 'produto__area_id')
+            .annotate(total=Sum('quantidade'))
+    )
     reservas = {
         (r['produto__codigo_barras'], r['produto__area_id']): r['total']
-        for r in pendentes.values('produto__codigo_barras', 'produto__area_id').annotate(total=Sum('quantidade'))
+        for r in pendentes
     }
 
     produtos_filtrados = []
     for p in produtos.order_by('validade', 'criado_em'):
-        key = (p.codigo_barras, p.area_id)
-        real     = p.quantidade
-        reservado_lote = min(real, reservas.get(key, 0))
-        reservas[key] = reservas.get(key, 0) - reservado_lote
-        disponivel = real - reservado_lote
+        key        = (p.codigo_barras, p.area_id)
+        real       = p.quantidade
+        reservado  = min(real, reservas.get(key, 0))
+        reservas[key] = reservas.get(key, 0) - reservado
+        disponivel = real - reservado
 
-        p.estoque_real                     = real
-        p.estoque_reservado                = reservado_lote
-        p.estoque_disponivel_projetado     = disponivel
-        p.estoque_baixo                    = disponivel <= minimo_por_area.get(p.area_id, 0)
-        p.percentual_estoque               = (disponivel / minimo_por_area.get(p.area_id, 1)) * 100
+        # prepara campos para template
+        p.estoque_real                 = real
+        p.estoque_reservado            = reservado
+        p.estoque_disponivel_projetado = disponivel
+
+        # --- cálculo usando % mínimo da área ---
+        pct_minimo = minimo_pct_por_area.get(p.area_id, DEFAULT_MINIMO_PCT)
+        threshold  = real * (pct_minimo / 100.0)
+        # badge de estoque baixo
+        p.estoque_baixo = disponivel <= threshold
+        # percentual do disponível em relação ao threshold
+        p.percentual_estoque = (disponivel / threshold) * 100 if threshold else 0
+        # ------------------------------------------
 
         if not somente_baixo or p.estoque_baixo:
             produtos_filtrados.append(p)
 
     return render(request, 'core/lista_produtos.html', {
         'produtos': produtos_filtrados,
-        'busca': busca, 'filtro_status': status, 'filtro_area': filtro_area,
-        'ordenar_por': ordenar_por, 'ordem': ordem,
-        'areas': Area.objects.all(), 'fornecedores': Fornecedor.objects.all(),
+        'busca': busca,
+        'filtro_status': status,
+        'filtro_area': filtro_area,
+        'ordenar_por': ordenar_por,
+        'ordem': ordem,
+        'areas': Area.objects.all(),
+        'fornecedores': Fornecedor.objects.all(),
         'estoque_baixo_aplicado': somente_baixo,
     })
 
@@ -243,19 +272,6 @@ def novo_produto(request):
         "form": form,
         "areas": Area.objects.all(),
         "fornecedores": Fornecedor.objects.all(),
-    })
-
-
-@login_required
-def editar_produto(request, id):
-    produto = get_object_or_404(Produto, id=id)
-    form = ProdutoForm(request.POST or None, instance=produto)
-    if request.method == 'POST' and form.is_valid():
-        form.save()
-        messages.success(request, "Produto atualizado com sucesso.")
-        return redirect('lista_produtos')
-    return render(request, 'core/editar_produto.html', {
-        "form": form, "produto": produto
     })
 
 
@@ -503,4 +519,115 @@ def cadastro_produtos(request):
     return render(request, "core/cadastro_produtos.html", {
         "areas":        areas,
         "fornecedores": fornecedores,
+    })
+    
+@login_required
+def novo_produto_individual(request):
+    """
+    Usa o mesmo layout de edição para criação:
+    template: core/produto_form.html
+    """
+    if request.method == 'POST':
+        form = ProdutoForm(request.POST)
+        if form.is_valid():
+            prod = form.save(commit=False)
+            prod.criado_por = request.user
+            prod.save()
+            messages.success(request, "Produto criado com sucesso!")
+            return redirect('lista_produtos')
+    else:
+        form = ProdutoForm()
+
+    return render(request, 'core/produto_form.html', {
+        'form': form,
+        'titulo': 'Novo Produto',
+        'produto': None,
+        'areas': Area.objects.all(),
+        'fornecedores': Fornecedor.objects.all(),
+    })
+
+
+@login_required
+def novo_produto_individual(request):
+    if request.method == 'POST':
+        form = ProdutoForm(request.POST)
+        if form.is_valid():
+            prod = form.save(commit=False)
+            prod.criado_por = request.user
+            prod.save()
+            messages.success(request, "Produto cadastrado com sucesso!")
+            return redirect('lista_produtos')
+    else:
+        form = ProdutoForm()
+
+    # cria a URL base sem código para o fetch
+    # ex: "/api/produto/cosmos/"
+    api_template = reverse('buscar_nome_produto', kwargs={'codigo': 'DUMMY'})
+    api_base     = api_template.replace('DUMMY', '')
+
+    return render(request, 'core/produto_form.html', {
+        'form': form,
+        'titulo': 'Novo Produto',
+        'produto': None,
+        'areas': Area.objects.all(),
+        'fornecedores': Fornecedor.objects.all(),
+        'api_base': api_base,
+    })
+
+
+@login_required
+def editar_produto(request, id):
+    produto = get_object_or_404(Produto, pk=id)
+    if request.method == 'POST':
+        form = ProdutoForm(request.POST, instance=produto)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Produto atualizado com sucesso.")
+            return redirect('lista_produtos')
+    else:
+        form = ProdutoForm(instance=produto)
+
+    api_template = reverse('buscar_nome_produto', kwargs={'codigo': 'DUMMY'})
+    api_base     = api_template.replace('DUMMY', '')
+
+    return render(request, 'core/produto_form.html', {
+        'form': form,
+        'titulo': 'Editar Produto',
+        'produto': produto,
+        'areas': Area.objects.all(),
+        'fornecedores': Fornecedor.objects.all(),
+        'api_base': api_base,
+    })
+    
+def buscar_nome_produto_por_codigo(codigo_barras):
+    """
+    Lê a COSMOS_API_KEY do settings e busca /gtins/{codigo}.json.
+    """
+    url = f"https://api.cosmos.bluesoft.com.br/gtins/{codigo_barras}.json"
+    headers = {
+        "X-Cosmos-Token": settings.COSMOS_API_KEY,
+        "Content-Type": "application/json",
+        "User-Agent": "Cosmos-API-Request",
+    }
+    try:
+        resp = requests.get(url, headers=headers, timeout=5)
+        if resp.status_code == 200:
+            return resp.json().get("description", "Descrição não encontrada")
+        if resp.status_code == 404:
+            return "Produto não encontrado"
+        return f"Erro: {resp.status_code}"
+    except Exception:
+        return "Erro na consulta"
+
+@login_required
+@require_GET
+def buscar_nome_produto_view(request, codigo):
+    """
+    View REST para /api/produto/cosmos/<codigo>/
+    Retorna JSON: { "codigo": "...", "nome_produto": "..." }
+    """
+    nome = buscar_nome_produto_por_codigo(codigo)
+    return JsonResponse({
+        "codigo": codigo,
+        "nome_produto": nome
     })

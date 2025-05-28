@@ -4,57 +4,66 @@
 {% block title %}Editar Perfil{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center mt-5 pt-4">
-  <div class="col-lg-6 col-md-8">
-    <div class="card shadow-sm">
-      <div class="card-header bg-primary text-white">
-        <h5 class="mb-0">Editar meu cadastro</h5>
-      </div>
-      <div class="card-body">
-        <form method="post" novalidate>
-          {% csrf_token %}
+  <div class="mb-3">
+    <button type="button" class="btn btn-outline-secondary" onclick="history.back()">
+      &larr; Voltar
+    </button>
+  </div>
 
-          {# Username #}
-          <div class="form-floating mb-3">
-            {{ form.username }}
-            <label for="{{ form.username.id_for_label }}">Username</label>
-            {{ form.username.errors }}
-          </div>
+  <div class="row justify-content-center mt-2 pt-4">
+    <div class="col-lg-6 col-md-8">
+      <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">Editar meu cadastro</h5>
+        </div>
+        <div class="card-body">
+          <form method="post" novalidate>
+            {% csrf_token %}
 
-          {# Email #}
-          <div class="form-floating mb-3">
-            {{ form.email }}
-            <label for="{{ form.email.id_for_label }}">Email</label>
-            {{ form.email.errors }}
-          </div>
+            {# Username #}
+            <div class="form-floating mb-3">
+              {{ form.username }}
+              <label for="{{ form.username.id_for_label }}">Username</label>
+              {{ form.username.errors }}
+            </div>
 
-          <hr class="my-4">
+            {# E-mail #}
+            <div class="form-floating mb-3">
+              {{ form.email }}
+              <label for="{{ form.email.id_for_label }}">E-mail</label>
+              {{ form.email.errors }}
+            </div>
 
-          <h6 class="text-secondary">Alterar senha</h6>
+            <hr class="my-4">
+            <h6 class="text-secondary">Alterar senha</h6>
 
-          {# Nova senha #}
-          <div class="form-floating mb-3">
-            {{ form.password1 }}
-            <label for="{{ form.password1.id_for_label }}">Nova senha</label>
-            {{ form.password1.errors }}
-          </div>
+            {# Nova senha #}
+            <div class="form-floating mb-3">
+              {{ form.password1 }}
+              <label for="{{ form.password1.id_for_label }}">Nova senha</label>
+              {{ form.password1.errors }}
+            </div>
 
-          {# Confirmação de senha #}
-          <div class="form-floating mb-3">
-            {{ form.password2 }}
-            <label for="{{ form.password2.id_for_label }}">Confirme a nova senha</label>
-            {{ form.password2.errors }}
-          </div>
+            {# Confirmação de senha #}
+            <div class="form-floating mb-3">
+              {{ form.password2 }}
+              <label for="{{ form.password2.id_for_label }}">Confirme a nova senha</label>
+              {{ form.password2.errors }}
+            </div>
 
-          {# Botão de envio #}
-          <div class="d-grid mt-4">
-            <button type="submit" class="btn btn-success">
-              Salvar alterações
-            </button>
-          </div>
-        </form>
+            <div class="d-flex justify-content-between mt-4">
+              <button type="button"
+                      class="btn btn-outline-secondary"
+                      onclick="history.back()">
+                &larr; Voltar
+              </button>
+              <button type="submit" class="btn btn-success">
+                Salvar alterações
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   </div>
-</div>
 {% endblock %}
