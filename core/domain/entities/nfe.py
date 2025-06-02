@@ -1,3 +1,5 @@
+# core/domain/entities/nfe.py
+
 from dataclasses import dataclass
 from datetime import date
 from typing import List, Optional

@@ -15,7 +15,7 @@ from openpyxl                        import Workbook
 from openpyxl.styles                 import Font, PatternFill, Alignment
 from openpyxl.utils                  import get_column_letter
 
-from core.models    import Pedido, ItemPedido, Produto, Area
+from core.models    import Pedido, ItemPedido, Produto, Area, PedidoHistorico
 
 PENDING_STATUSES = ['aguardando_aprovacao', 'aprovado', 'separado']
 
@@ -51,6 +51,7 @@ def lista_pedidos(request):
     ordenar_por = request.GET.get("ordenar_por", "-data_solicitacao")
     page        = request.GET.get("page")
 
+    # Se for admin ou técnico, lista todos; senão apenas do próprio usuário
     qs = Pedido.objects.all() if is_admin_tecnico(request.user) \
          else Pedido.objects.filter(usuario=request.user)
 
@@ -98,6 +99,21 @@ def novo_pedido(request):
             data_necessaria=data_necessaria,
         )
 
+        # ── Registra no histórico que o pedido foi “Solicitado” ou já “Aprovado” ──
+        if status_inicial == "aprovado":
+            PedidoHistorico.objects.create(
+                pedido=pedido,
+                usuario=request.user,
+                acao="Aprovado"
+            )
+        else:
+            PedidoHistorico.objects.create(
+                pedido=pedido,
+                usuario=request.user,
+                acao="Solicitado"
+            )
+        # ────────────────────────────────────────────────────────────────────────
+
         # 4) Loop pelos itens vindos do form
         hoje        = now().date()
         area_ids    = request.POST.getlist('area_id')
@@ -113,7 +129,7 @@ def novo_pedido(request):
                 continue
 
             quantidade = int(qt)
-            # trava o registro pra consistência
+            # trava o registro para consistência
             prod = get_object_or_404(
                 Produto.objects.select_for_update(), pk=int(prod_id)
             )
@@ -153,11 +169,86 @@ def novo_pedido(request):
 
 
 @login_required
+@transaction.atomic
 def detalhes_pedido(request, pedido_id):
+    """
+    Exibe detalhes do pedido e, se vier POST com name="action" igual a 'separar' ou 'retirar',
+    processa a liberação ou a retirada, respectivamente.
+    """
     pedido = get_object_or_404(Pedido, id=pedido_id)
-    return render(request, 'core/detalhes_pedido.html', {
+    eh_admin_tecnico = is_admin_tecnico(request.user)
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+
+        # 1) Aprovação não acontece aqui (já tratado em lista), apenas separar e retirar
+        if action == 'separar' and eh_admin_tecnico and pedido.status == 'aprovado':
+            erros = []
+            itens_atualizados = 0
+
+            for item in pedido.itens.all():
+                campo_name = f'liberado_{item.id}'
+                valor_str = request.POST.get(campo_name)
+
+                # 1.1) Tenta converter para inteiro
+                try:
+                    liberado = int(valor_str)
+                except (TypeError, ValueError):
+                    erros.append(f"Quantidade inválida para '{item.produto.descricao}'.")
+                    continue
+
+                # 1.2) Verifica se não ultrapassa o solicitado
+                if liberado < 0 or liberado > item.quantidade:
+                    erros.append(
+                        f"Para '{item.produto.descricao}', a quantidade liberada deve ficar "
+                        f"entre 0 e {item.quantidade}."
+                    )
+                    continue
+
+                # 1.3) Tudo válido: salva no item
+                item.liberado = liberado
+                item.save()
+                itens_atualizados += 1
+
+            # 1.4) Se houver erros, exibe mensagens e volta para a própria página de detalhes
+            if erros:
+                for msg_text in erros:
+                    messages.error(request, msg_text)
+                return redirect('detalhe_pedido', pedido_id=pedido.id)
+
+            # 1.5) Se todos os itens foram atualizados sem erro, marcamos o pedido como “separado”
+            pedido.status = 'separado'
+            pedido.data_separacao = now()
+            pedido.save()
+            messages.success(request, f"{itens_atualizados} item(ns) liberado(s) com sucesso!")
+
+            # Após “separar”, podemos redirecionar de volta à lista de pedidos ou ficar no detalhe.
+            # Aqui vamos redirecionar à lista:
+            return redirect('lista_pedidos')
+
+        # 2) “Retirar” → só deve ocorrer se pedido.status == 'separado'
+        elif action == 'retirar' and eh_admin_tecnico and pedido.status == 'separado':
+            nome_retirado_por = request.POST.get('retirado_por')
+            if not nome_retirado_por:
+                messages.error(request, "Informe quem retirou o pedido.")
+                return redirect('detalhe_pedido', pedido_id=pedido.id)
+
+            # Registra a retirada no próprio model Pedido
+            pedido.registrar_retirada(nome_retirado_por)
+            messages.success(request, f"Pedido {pedido.codigo} registrado como retirado por {nome_retirado_por}.")
+
+            # Após retirar, redirecionamos para a lista de pedidos
+            return redirect('lista_pedidos')
+
+        else:
+            # Qualquer outro caso: ação não permitida ou estado inválido
+            messages.error(request, "Ação não permitida ou estado inválido.")
+            return redirect('detalhe_pedido', pedido_id=pedido.id)
+
+    # Se não for POST, apenas renderiza o template normalmente
+    return render(request, 'core/detalhe_pedido.html', {
         'pedido': pedido,
-        'eh_admin_tecnico': is_admin_tecnico(request.user),
+        'eh_admin_tecnico': eh_admin_tecnico,
     })
 
 
@@ -195,7 +286,33 @@ def deletar_pedido(request, pedido_id):
 
 
 @login_required
+def registrar_retirada(request, pedido_id):
+    """
+    Processa a retirada de um pedido que já foi separado.
+    """
+    pedido = get_object_or_404(Pedido, id=pedido_id)
+    if request.method == 'POST':
+        nome = request.POST.get('retirado_por')
+        if nome:
+            pedido.registrar_retirada(nome)
+            # ── Registrar no histórico que o pedido foi retirado ──
+            PedidoHistorico.objects.create(
+                pedido=pedido,
+                usuario=request.user,
+                acao=f"Retirado por {nome}"
+            )
+            # ─────────────────────────────────────────────────────
+            messages.success(request, f"Pedido {pedido.codigo} registrado como retirado.")
+        else:
+            messages.error(request, "Informe quem retirou o pedido.")
+    return redirect('lista_pedidos')
+
+
+@login_required
 def exportar_pedidos_excel(request):
+    """
+    Gera um arquivo Excel (.xlsx) contendo todos os pedidos (e seus itens) filtrados por status.
+    """
     status = request.GET.get('status')
     qs     = Pedido.objects.select_related('usuario', 'aprovado_por')\
                             .prefetch_related('itens__produto__area')\
@@ -257,7 +374,7 @@ def exportar_pedidos_excel(request):
     bio.seek(0)
     resp = HttpResponse(
         bio.read(),
-        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
     resp['Content-Disposition'] = 'attachment; filename=pedidos.xlsx'
     return resp

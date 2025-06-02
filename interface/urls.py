@@ -18,6 +18,7 @@ from interface.controllers.produto_controller import (
     salvar_produto_inline,
     cadastro_produtos,
     buscar_nome_produto_view,
+    
 )
 
 # NFe
@@ -27,6 +28,7 @@ from interface.controllers.nfe_controller import (
     editar_nfe,
     excluir_nfe,
     upload_nfe,
+    confirmar_nfe,
 )
 
 # Fornecedores
@@ -177,10 +179,12 @@ urlpatterns = [
     path('produtos/cadastro-massa/', cadastro_produtos,      name='cadastro_produtos'),
 
     # NFEs
-    path('nfes/',               lista_nfes,   name='lista_nfes'),
-    path('nfes/novo/',          nova_nfe,     name='nova_nfe'),
-    path('nfes/editar/<int:id>/', editar_nfe, name='editar_nfe'),
-    path('nfes/excluir/<int:id>/',excluir_nfe,name='excluir_nfe'),
+    path('nfe/lista/',       lista_nfes,     name='lista_nfes'),
+    path('nfe/novo/',        nova_nfe,       name='nova_nfe'),
+    path('nfe/editar/<int:id>/', editar_nfe, name='editar_nfe'),
+    path('nfe/excluir/<int:id>/', excluir_nfe, name='excluir_nfe'),
+    path('nfe/upload/',      upload_nfe,     name='upload_nfe'),
+    path('nfe/confirmar/',   confirmar_nfe,  name='confirmar_nfe'),
 
     # Fornecedores
     path(
@@ -273,4 +277,5 @@ urlpatterns = [
       'api/produto/cosmos/<str:codigo>/',
       buscar_nome_produto_view,
       name='buscar_nome_produto')
+    
 ]

@@ -211,22 +211,25 @@ class LogAcao(models.Model):
 class Pedido(models.Model):
     STATUS_CHOICES = [
         ('aguardando_aprovacao', 'Aguardando Aprovação'),
-        ('aprovado', 'Aprovado'),
-        ('separado', 'Separado'),
-        ('entregue', 'Entregue'),
+        ('aprovado',            'Aprovado'),
+        ('separado',            'Separado'),
+        ('entregue',            'Entregue'),
     ]
 
-    codigo = models.CharField(max_length=20, unique=True)
-    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    data_solicitacao = models.DateTimeField(auto_now_add=True)
-    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='aguardando_aprovacao')
-    aprovado_por = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='pedidos_aprovados')
-    data_separacao = models.DateTimeField(null=True, blank=True)
-    data_retirada = models.DateTimeField(null=True, blank=True)
-    retirado_por = models.CharField(max_length=100, null=True, blank=True)
-    observacao = models.TextField(blank=True, null=True)
-    data_necessaria = models.DateField(null=True, blank=True)
-    data_aprovacao = models.DateTimeField(null=True, blank=True)
+    codigo            = models.CharField(max_length=20, unique=True)
+    usuario           = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    data_solicitacao  = models.DateTimeField(auto_now_add=True)
+    status            = models.CharField(max_length=30, choices=STATUS_CHOICES, default='aguardando_aprovacao')
+    aprovado_por      = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='pedidos_aprovados')
+    data_aprovacao    = models.DateTimeField(null=True, blank=True)
+    data_separacao    = models.DateTimeField(null=True, blank=True)
+    data_retirada     = models.DateTimeField(null=True, blank=True)
+    retirado_por      = models.CharField(max_length=100, null=True, blank=True)
+    data_necessaria   = models.DateField(null=True, blank=True)
+    observacao        = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return self.codigo
 
     def aprovar(self, usuario_aprovador):
         if self.status == 'aguardando_aprovacao':
@@ -244,13 +247,16 @@ class Pedido(models.Model):
     def registrar_retirada(self, nome_retirado_por):
         if self.status != 'separado':
             return
+        from django.db import transaction
+        from .models import SaidaProdutoPorPedido, ItemPedido, Produto
+
+        restante = sum(item.liberado or item.quantidade for item in self.itens.all())
+        lotes = Produto.objects.filter(
+            codigo_barras__in=[item.produto.codigo_barras for item in self.itens.all()],
+            area=self.itens.first().produto.area
+        ).order_by('validade', 'criado_em')
+
         with transaction.atomic():
-            from .models import SaidaProdutoPorPedido, ItemPedido
-            restante = sum(item.liberado or item.quantidade for item in self.itens.all())
-            lotes = Produto.objects.filter(
-                codigo_barras__in=[item.produto.codigo_barras for item in self.itens.all()],
-                area=self.itens.first().produto.area
-            ).order_by('validade', 'criado_em')
             for lote in lotes:
                 if restante <= 0:
                     break
@@ -260,13 +266,31 @@ class Pedido(models.Model):
                 lote.save(update_fields=['quantidade'])
                 SaidaProdutoPorPedido.objects.create(produto=lote, pedido=self, quantidade=usado)
                 restante -= usado
+
             if restante > 0:
                 raise ValueError(f"Estoque insuficiente ao retirar itens de {self.codigo}")
+
             self.status = 'entregue'
             self.retirado_por = nome_retirado_por
             self.data_retirada = timezone.now()
             self.save()
 
+
+class PedidoHistorico(models.Model):
+    """
+    Registra cada ação ou mudança de status do pedido.
+    """
+    pedido    = models.ForeignKey(Pedido, on_delete=models.CASCADE, related_name='historicos')
+    usuario   = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    acao      = models.CharField(max_length=50)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['timestamp']
+
+    def __str__(self):
+        quem = self.usuario.username if self.usuario else 'Sistema'
+        return f"{self.acao} por {quem} em {self.timestamp.strftime('%d/%m/%Y %H:%M')}"
 
 class ItemPedido(models.Model):
     pedido = models.ForeignKey(Pedido, on_delete=models.CASCADE, related_name="itens")

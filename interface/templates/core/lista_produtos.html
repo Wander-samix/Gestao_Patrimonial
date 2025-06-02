@@ -34,7 +34,7 @@
                name="estoque_baixo" id="checkEstoqueBaixo" value="1"
                {% if estoque_baixo_aplicado %}checked{% endif %}>
         <label class="form-check-label" for="checkEstoqueBaixo">
-          Somente Estoque Baixo
+          Somente Estoque Baixo ↓ 50%
         </label>
       </div>
     </div>
@@ -55,6 +55,17 @@
       </div>
     </div>
   </form>
+
+  <script>
+document.addEventListener('DOMContentLoaded', function() {
+  var cb = document.getElementById('checkEstoqueBaixo');
+  if (cb) {
+    cb.addEventListener('change', function() {
+      this.form.submit();
+    });
+  }
+});
+</script>
 
   <style>
     /* Cabeçalho preto e texto branco */
@@ -140,7 +151,7 @@
             <td>{{ produto.estoque_real }}</td>
             <td>{{ produto.estoque_reservado }}</td>
             <td>
-              {{ produto.estoque_disponivel_projetado }}
+              {{ produto.disponivel_total_grupo }}
               {% if produto.estoque_baixo %}
                 <span class="badge bg-danger ms-1" style="font-size:.75rem;padding:4px 8px;border-radius:8px;">
                   <i class="bi bi-exclamation-triangle-fill me-1"></i>

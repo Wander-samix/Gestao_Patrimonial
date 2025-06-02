@@ -19,7 +19,7 @@ from openpyxl import Workbook
 from django.db.models import Q, Sum, Max, Min, F, DecimalField
 from django.views.decorators.http import require_GET
 from itertools import zip_longest
-from .models import (
+from core.models import (
     Produto, Fornecedor, Usuario, MovimentacaoEstoque,
     Area, Pedido, ItemPedido, LogAcao,
     ConfiguracaoEstoque)
@@ -36,13 +36,13 @@ from ..forms.forms import ProdutoForm
 import csv
 from datetime import date, datetime
 from django.shortcuts import render
-from .models import SessionLog
+from core.models import SessionLog
 from django.core.paginator import Paginator
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill
 from openpyxl.utils import get_column_letter
 from django.db.models import OuterRef, Subquery
-from .models import SaidaProdutoPorPedido
+from core.models import SaidaProdutoPorPedido
 
 
 register = template.Library()
@@ -100,7 +100,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db.models import Q, Sum
 from django.utils.timezone import now
-from .models import Produto, Area, Fornecedor, ItemPedido, ConfiguracaoEstoque, PENDING_STATUSES
+from core.models import Produto, Area, Fornecedor, ItemPedido, ConfiguracaoEstoque, PENDING_STATUSES
 
 @login_required
 def lista_produtos(request):

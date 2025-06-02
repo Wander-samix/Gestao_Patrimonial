@@ -8,7 +8,9 @@
   <h2>Pedidos</h2>
   <div>
     <a href="{% url 'novo_pedido' %}" class="btn btn-primary me-2">+ Novo Pedido</a>
-    <a href="{% url 'exportar_pedidos_excel' %}?status={{ status_selecionado }}" class="btn btn-outline-success">Exportar Excel</a>
+    <a href="{% url 'exportar_pedidos_excel' %}?status={{ status_selecionado }}" class="btn btn-outline-success">
+      Exportar Excel
+    </a>
   </div>
 </div>
 
@@ -31,7 +33,8 @@
 
 <div class="table-responsive">
   <table class="table table-bordered table-hover">
-    <thead class="table-dark text-center align-middle" style="font-weight: 400; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 0.9rem; color: white;">
+    <thead class="table-dark text-center align-middle"
+           style="font-weight: 400; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 0.9rem; color: white;">
       <tr>
         <th style="width:40px; color: white;">#</th>
         <th>
@@ -43,8 +46,6 @@
           <a href="?ordenar_por=data_solicitacao{% if status_selecionado %}&status={{ status_selecionado }}{% endif %}" style="color: white;">
             Data Solicitação
           </a>
-        </th>
-      
         </th>
         <th>Solicitante</th>
         <th>Necessário em</th>
@@ -60,19 +61,27 @@
           <td>{{ pedido.data_solicitacao|date:"d/m/Y H:i" }}</td>
           <td>
             {{ pedido.usuario.username }}<br>
-            <small class="text-muted"><i class="bi bi-envelope"></i> {{ pedido.usuario.email }}</small>
+            <small class="text-muted">
+              <i class="bi bi-envelope"></i> {{ pedido.usuario.email }}
+            </small>
           </td>
           <td class="text-center">{{ pedido.data_necessaria|default:"—"|date:"d/m/Y" }}</td>
           <td>
             {{ pedido.get_status_display }}
             {% if pedido.aprovado_por %}
-              <br><small class="text-muted">Aprovado por {{ pedido.aprovado_por.username }} em {{ pedido.data_aprovacao|date:"d/m H:i" }}</small>
+              <br><small class="text-muted">
+                Aprovado por {{ pedido.aprovado_por.username }} em {{ pedido.data_aprovacao|date:"d/m H:i" }}
+              </small>
             {% endif %}
             {% if pedido.data_separacao %}
-              <br><small class="text-muted">Separado em {{ pedido.data_separacao|date:"d/m H:i" }}</small>
+              <br><small class="text-muted">
+                Separado em {{ pedido.data_separacao|date:"d/m H:i" }}
+              </small>
             {% endif %}
             {% if pedido.retirado_por %}
-              <br><small class="text-muted">Retirado por {{ pedido.retirado_por }} em {{ pedido.data_retirada|date:"d/m H:i" }}</small>
+              <br><small class="text-muted">
+                Retirado por {{ pedido.retirado_por }} em {{ pedido.data_retirada|date:"d/m H:i" }}
+              </small>
             {% endif %}
           </td>
           <td class="text-center">
@@ -83,6 +92,7 @@
                     data-bs-parent="#pedidosAccordion">
               <i class="bi bi-chevron-down"></i>
             </button>
+
             {% if user.papel == 'admin' %}
               <a href="{% url 'deletar_pedido' pedido.id %}"
                  class="btn btn-sm btn-outline-danger me-1"
@@ -90,6 +100,7 @@
                 <i class="bi bi-trash"></i>
               </a>
             {% endif %}
+
             <form method="post"
                   action="{% url 'detalhe_pedido' pedido.id %}#collapse{{ pedido.id }}"
                   class="d-inline">
@@ -100,6 +111,7 @@
               {% elif pedido.status == 'aprovado' and user.papel == 'admin' %}
                 <button name="action" value="separar" class="btn btn-sm btn-warning">Separar</button>
               {% elif pedido.status == 'separado' and user.papel == 'admin' %}
+                <!-- campo oculto onde o JS vai colocar o nome de quem retirou -->
                 <input type="hidden" name="retirado_por" id="retirado_por_{{ pedido.id }}">
                 <button type="button"
                         class="btn btn-sm btn-primary"
@@ -143,7 +155,10 @@
 
                 {% for subitem in pedido.subitens.all %}
                   <tr class="table-secondary">
-                    <td>{{ subitem.produto.descricao }} <span class="text-muted">(subitem)</span></td>
+                    <td>
+                      {{ subitem.produto.descricao }}
+                      <span class="text-muted">(subitem)</span>
+                    </td>
                     <td class="text-center">{{ subitem.produto.codigo_barras }}</td>
                     <td class="text-center">{{ subitem.produto.area.nome|default:"—" }}</td>
                     <td class="text-center">{{ subitem.quantidade }}</td>
@@ -183,16 +198,16 @@
 </div>
 
 <script>
-function retirar(btn) {
-  const id   = btn.dataset.id;
-  const nome = prompt('Quem retirou o pedido?');
-  if (!nome) return;
-  document.getElementById('retirado_por_' + id).value = nome;
-  btn.name  = 'action';
-  btn.value = 'retirar';
-  btn.type  = 'submit';
-  btn.closest('form').submit();
-}
+  function retirar(btn) {
+    const id   = btn.dataset.id;
+    const nome = prompt('Quem retirou o pedido?');
+    if (!nome) return;
+    document.getElementById('retirado_por_' + id).value = nome;
+    btn.name  = 'action';
+    btn.value = 'retirar';
+    btn.type  = 'submit';
+    btn.closest('form').submit();
+  }
 </script>
 
 {% if pedidos.has_other_pages %}
@@ -200,19 +215,28 @@ function retirar(btn) {
     <ul class="pagination justify-content-center">
       {% if pedidos.has_previous %}
         <li class="page-item">
-          <a class="page-link" href="?page={{ pedidos.previous_page_number }}{% if status_selecionado %}&status={{ status_selecionado }}{% endif %}">Anterior</a>
+          <a class="page-link"
+             href="?page={{ pedidos.previous_page_number }}{% if status_selecionado %}&status={{ status_selecionado }}{% endif %}">
+            Anterior
+          </a>
         </li>
       {% endif %}
 
       {% for num in pedidos.paginator.page_range %}
         <li class="page-item {% if pedidos.number == num %}active{% endif %}">
-          <a class="page-link" href="?page={{ num }}{% if status_selecionado %}&status={{ status_selecionado }}{% endif %}">{{ num }}</a>
+          <a class="page-link"
+             href="?page={{ num }}{% if status_selecionado %}&status={{ status_selecionado }}{% endif %}">
+            {{ num }}
+          </a>
         </li>
       {% endfor %}
 
       {% if pedidos.has_next %}
         <li class="page-item">
-          <a class="page-link" href="?page={{ pedidos.next_page_number }}{% if status_selecionado %}&status={{ status_selecionado }}{% endif %}">Próxima</a>
+          <a class="page-link"
+             href="?page={{ pedidos.next_page_number }}{% if status_selecionado %}&status={{ status_selecionado }}{% endif %}">
+            Próxima
+          </a>
         </li>
       {% endif %}
     </ul>

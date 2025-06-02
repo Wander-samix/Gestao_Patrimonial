@@ -27,6 +27,7 @@
             {{ form.descricao.label_tag }}
             {{ form.descricao }}
             {{ form.descricao.errors }}
+            <div id="desc-feedback" class="text-danger small"></div>
           </div>
           <div class="col-md-4">
             {{ form.fornecedor.label_tag }}
@@ -86,30 +87,31 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   const codInput  = document.getElementById('id_codigo_barras');
-  const descInput = document.getElementById('id_descricao');
+  // Suporta input ou textarea para descrição:
+  const descInput = document.getElementById('id_descricao') || document.querySelector('textarea#id_descricao');
   const loteInput = document.getElementById('id_lote');
+  const descFeedback = document.getElementById('desc-feedback');
   const API_BASE  = "{{ api_base }}";  // passado pela view
 
-  console.log("API_BASE =", API_BASE);
   if (!codInput || !descInput) return;
 
   function buscarNaCosmos(codigo) {
     if (!codigo) return;
-    console.log("buscando descrição para", codigo);
+    descFeedback.innerText = '';
     fetch(API_BASE + encodeURIComponent(codigo) + '/')
-      .then(r => {
-        console.log("status:", r.status);
-        return r.json();
-      })
+      .then(r => r.json())
       .then(data => {
-        console.log("recebeu:", data);
-        descInput.value = data.nome_produto || '';
-        if (loteInput) {
-          const atual = parseInt(loteInput.value) || 0;
-          loteInput.value = atual + 1;
+        if (data.nome_produto && !data.nome_produto.startsWith("Produto não encontrado")) {
+          descInput.value = data.nome_produto;
+          descFeedback.innerText = '';
+        } else {
+          descInput.value = '';
+          descFeedback.innerText = 'Produto não encontrado na base Cosmos.';
         }
       })
-      .catch(err => console.error('Cosmos API erro:', err));
+      .catch(() => {
+        descFeedback.innerText = 'Erro ao buscar produto na Cosmos.';
+      });
   }
 
   codInput.addEventListener('blur', () => buscarNaCosmos(codInput.value.trim()));

@@ -10,3 +10,4 @@ class Fornecedor:
     telefone: Optional[str]
     email: Optional[str]
     ativo: bool
+

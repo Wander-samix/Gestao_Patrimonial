@@ -24,9 +24,9 @@ from django.utils.dateparse      import parse_date
 from django.utils.timezone       import now
 from django.core.mail            import send_mail
 from django.core.serializers.json import DjangoJSONEncoder
-from django.conf import settings
+from django.conf                 import settings
 import requests
-
+from collections import defaultdict
 
 from openpyxl                    import Workbook
 from openpyxl.styles             import Font, Alignment, PatternFill
@@ -44,7 +44,6 @@ from interface.forms.forms import (
 
 User = get_user_model()
 PENDING_STATUSES = ['aguardando_aprovacao', 'aprovado', 'separado']
-
 
 def calcular_estoque_disponivel(codigo_barras, area_id, data_limite=None):
     total = Produto.objects.filter(
@@ -84,6 +83,7 @@ def logout_view(request):
     logout(request)
     return redirect('login')
 
+
 @login_required
 def lista_produtos(request):
     busca         = request.GET.get('busca', '').strip()
@@ -108,7 +108,6 @@ def lista_produtos(request):
         exp = f"-{ordenar_por}" if ordem == 'desc' else ordenar_por
         produtos = produtos.order_by(exp)
 
-    # 2) estoque mínimo (%), por área
     configs = ConfiguracaoEstoque.objects.all()
     minimo_pct_por_area = {
         cfg.area_id: cfg.estoque_minimo
@@ -116,10 +115,9 @@ def lista_produtos(request):
         if cfg.area_id
     }
     DEFAULT_MINIMO_PCT = 50
-
     hoje = now().date()
 
-    # 3) reservas pendentes até hoje
+    # 2) reservas pendentes até hoje
     pendentes = (
         ItemPedido.objects
             .filter(
@@ -136,30 +134,51 @@ def lista_produtos(request):
         for r in pendentes
     }
 
+    # 3) Calcula totais por grupo (codigo_barras, area_id)
+    grupos = defaultdict(lambda: {'real': 0, 'reservado': 0})
+    for p in produtos:
+        key = (p.codigo_barras, p.area_id)
+        grupos[key]['real'] += p.quantidade
+
+    for key, total in reservas.items():
+        grupos[key]['reservado'] += total
+
+    # 4) Processa produtos
     produtos_filtrados = []
     for p in produtos.order_by('validade', 'criado_em'):
-        key        = (p.codigo_barras, p.area_id)
-        real       = p.quantidade
-        reservado  = min(real, reservas.get(key, 0))
+        key = (p.codigo_barras, p.area_id)
+        real = p.quantidade
+        reservado = min(real, reservas.get(key, 0))
         reservas[key] = reservas.get(key, 0) - reservado
         disponivel = real - reservado
 
-        # prepara campos para template
-        p.estoque_real                 = real
-        p.estoque_reservado            = reservado
-        p.estoque_disponivel_projetado = disponivel
+        # totais do grupo
+        total_real_grupo = grupos[key]['real']
+        total_reservado_grupo = grupos[key]['reservado']
+        disponivel_total_grupo = total_real_grupo - total_reservado_grupo
+        disponivel_total_grupo = max(disponivel_total_grupo, 0)
 
-        # --- cálculo usando % mínimo da área ---
+        # Para o template
+        p.estoque_real = real
+        p.estoque_reservado = reservado
+        p.estoque_disponivel_projetado = disponivel
+        p.disponivel_total_grupo = disponivel_total_grupo
+
+        # estoque mínimo da área
         pct_minimo = minimo_pct_por_area.get(p.area_id, DEFAULT_MINIMO_PCT)
-        threshold  = real * (pct_minimo / 100.0)
-        # badge de estoque baixo
-        p.estoque_baixo = disponivel <= threshold
-        # percentual do disponível em relação ao threshold
-        p.percentual_estoque = (disponivel / threshold) * 100 if threshold else 0
-        # ------------------------------------------
+        threshold = total_real_grupo * (pct_minimo / 100.0)
+
+        p.estoque_baixo = disponivel_total_grupo <= threshold
+
+        # AGORA: percentual do disponível em relação ao total real do grupo
+        p.percentual_estoque = (disponivel_total_grupo / total_real_grupo) * 100 if total_real_grupo else 0
 
         if not somente_baixo or p.estoque_baixo:
             produtos_filtrados.append(p)
+
+    # Conta total de produtos e filtrados para exibir no rodapé se desejar
+    total_produtos = produtos.count()
+    total_filtrados = len(produtos_filtrados)
 
     return render(request, 'core/lista_produtos.html', {
         'produtos': produtos_filtrados,
@@ -171,53 +190,126 @@ def lista_produtos(request):
         'areas': Area.objects.all(),
         'fornecedores': Fornecedor.objects.all(),
         'estoque_baixo_aplicado': somente_baixo,
+        'total_produtos': total_produtos,
+        'total_filtrados': total_filtrados,
     })
 
 
 @login_required
 @require_POST
 def upload_nfe(request):
+    """
+    Recebe um XML de NFe, extrai cabeçalho + itens, e renderiza a página de
+    confirmação (core/confirmar_importacao.html) com os campos ocultos de NFe.
+    """
     xml_file = request.FILES.get('arquivo')
     if not xml_file:
         messages.error(request, "Nenhum arquivo enviado.")
         return redirect('cadastro_produtos')
 
-    fs      = FileSystemStorage()
-    path    = fs.path(fs.save(xml_file.name, xml_file))
-    tree    = ET.parse(path)
-    root    = tree.getroot()
-    ns      = {'nfe': 'http://www.portalfiscal.inf.br/nfe'}
-    nfe_num = root.findtext('.//nfe:ide/nfe:nNF', namespaces=ns, default='')
-    emit    = root.find('.//nfe:emit', ns)
-    forn_nm = emit.findtext('nfe:xNome', namespaces=ns, default='')
+    # 1) Salva temporariamente o XML para parsing
+    fs   = FileSystemStorage(location='tmp/')
+    name = fs.save(xml_file.name, xml_file)
+    path = fs.path(name)
 
-    itens = []
-    for det in root.findall('.//nfe:det', ns):
-        prod = det.find('nfe:prod', ns)
-        if not prod:
-            continue
-        itens.append({
-            'nfe_numero':      nfe_num,
-            'codigo_barras':   prod.findtext('nfe:cProd', namespaces=ns, default=''),
-            'descricao':       prod.findtext('nfe:xProd', namespaces=ns, default=''),
-            'quantidade':      prod.findtext('nfe:qCom', namespaces=ns, default='0'),
-            'preco_unitario':  prod.findtext('nfe:vUnCom', namespaces=ns, default='0.00'),
-            'fornecedor_nome': forn_nm,
-            'area_id':         None,
+    try:
+        # 2) Faz parsing do XML
+        tree = ET.parse(path)
+        root = tree.getroot()
+
+        # 3) Detecta namespace (caso o XML tenha)
+        ns = ''
+        if root.tag.startswith('{'):
+            ns = root.tag.split('}')[0] + '}'
+
+        # --- Extrai campos do cabeçalho ---
+        ide = root.find(f".//{ns}ide")
+        # Número da NFe
+        nfe_numero = ide.find(f"{ns}nNF").text if ide is not None and ide.find(f"{ns}nNF") is not None else ''
+        # Data de emissão (formato YYYY-MM-DD)
+        data_emissao_raw = ide.find(f"{ns}dEmi").text if ide is not None and ide.find(f"{ns}dEmi") is not None else None
+        data_emissao = datetime.strptime(data_emissao_raw, "%Y-%m-%d").date() if data_emissao_raw else None
+
+        # Totais: valor total (vNF) e peso total (vPeso) dentro de ICMSTot
+        icmstot = root.find(f".//{ns}ICMSTot")
+        valor_total = Decimal('0.00')
+        peso = Decimal('0.00')
+        if icmstot is not None:
+            vnf = icmstot.find(f"{ns}vNF")
+            vpr = icmstot.find(f"{ns}vPeso")
+            if vnf is not None:
+                valor_total = Decimal(vnf.text.replace(',', '.'))
+            if vpr is not None:
+                peso = Decimal(vpr.text.replace(',', '.'))
+
+        # Emitente (fornecedor) — CNPJ e xNome
+        emit = root.find(f".//{ns}emit")
+        cnpj_fornecedor = emit.find(f"{ns}CNPJ").text if emit is not None and emit.find(f"{ns}CNPJ") is not None else ''
+        nome_fornecedor = emit.find(f"{ns}xNome").text if emit is not None and emit.find(f"{ns}xNome") is not None else ''
+
+        # --- Extrai cada item (det/prod) ---
+        produtos_extraidos = []
+        dets = root.findall(f".//{ns}det")
+        for det in dets:
+            prod = det.find(f"{ns}prod")
+            if prod is None:
+                continue
+
+            codigo_barras   = prod.find(f"{ns}cProd").text if prod.find(f"{ns}cProd") is not None else ''
+            descricao       = prod.find(f"{ns}xProd").text if prod.find(f"{ns}xProd") is not None else ''
+            qt_text         = prod.find(f"{ns}qCom").text if prod.find(f"{ns}qCom") is not None else '0'
+            quantidade      = int(Decimal(qt_text)) if qt_text else 0
+            vuc_text        = prod.find(f"{ns}vUnCom").text if prod.find(f"{ns}vUnCom") is not None else '0.00'
+            preco_unitario  = float(Decimal(vuc_text.replace(',', '.'))) if vuc_text else 0.0
+
+            # Validade (quase nunca vem no XML; deixamos em branco)
+            validade = ''
+
+            # Lote (vai ficar em branco – o Produto.save() calculará)
+            lote = ''
+
+            status = "ativo"
+
+            produtos_extraidos.append({
+                'codigo_barras':   codigo_barras,
+                'descricao':       descricao,
+                'fornecedor_nome': nome_fornecedor,
+                'quantidade':      quantidade,
+                'preco_unitario':  preco_unitario,
+                'validade':        validade,
+                'lote':            lote,
+                'status':          status,
+                'area_id':         None,  # usuário selecionará no template
+            })
+
+        # Remove o XML temporário
+        fs.delete(name)
+
+        if not produtos_extraidos:
+            messages.warning(request, "Nenhum item encontrado no XML da NFe.")
+            return redirect('cadastro_produtos')
+
+        # 4) Renderiza template de confirmação, enviando cabeçalho + itens
+        return render(request, 'core/confirmar_importacao.html', {
+            'produtos':         produtos_extraidos,
+            'areas':            Area.objects.all(),
+            'nfe_numero':       nfe_numero,
+            'data_emissao':     data_emissao,       # no formato date
+            'cnpj_fornecedor':  cnpj_fornecedor,
+            'valor_total':      valor_total,
+            'peso':             peso,
         })
 
-    return render(request, 'core/confirmar_importacao.html', {
-        'produtos': itens,
-        'areas': Area.objects.all(),
-        'nfe_numero': nfe_num,
-        'fornecedor_nome': forn_nm,
-    })
+    except ET.ParseError:
+        fs.delete(name)
+        messages.error(request, 'Estrutura do XML inválida. Verifique o arquivo e tente novamente.')
+        return redirect('cadastro_produtos')
 
 
 @login_required
 def novo_produto(request):
     """
-    Se vier mais de um código_barras no POST, faz importação em massa,
+    Se vier mais de um codigo_barras no POST, faz importação em massa;
     senão usa ProdutoForm para cadastro individual.
     """
     if request.method == "POST":
@@ -235,9 +327,9 @@ def novo_produto(request):
                 request.POST.getlist("preco_unitario"),
                 fillvalue=""
             ):
-                validade = parse_date(val) if val else None
-                quantidade = int(qt or 0)
-                preco       = float(pu or 0)
+                validade    = parse_date(val) if val else None
+                quantidade  = int(qt or 0)
+                preco       = float(pu.replace(',', '.')) if pu else 0.0
                 fornecedor  = None
                 if fn:
                     fornecedor, _ = Fornecedor.objects.get_or_create(nome=fn)
@@ -324,7 +416,7 @@ def salvar_produto_inline(request):
             lote            = str(lote),
             validade        = data['validade'],
             quantidade      = int(data['quantidade']),
-            preco_unitario  = float(data['preco_unitario']),
+            preco_unitario  = float(data['preco_unitario'].replace(',', '.')),
             criado_por      = request.user
         )
         return JsonResponse({
@@ -374,18 +466,32 @@ def exportar_produtos_excel(request):
         c.font = header_font
         c.alignment = center
 
+    # -- calcular Reservado e Disponível para cada produto --  
+    from interface.controllers.produto_controller import PENDING_STATUSES
+
     for row_idx, produto in enumerate(qs, start=3):
-        info = calcular_estoque_disponivel(produto.codigo_barras, produto.area_id)
+        reservado = (
+            ItemPedido.objects
+            .filter(
+                produto__codigo_barras=produto.codigo_barras,
+                produto__area_id=produto.area_id,
+                pedido__status__in=PENDING_STATUSES
+            )
+            .aggregate(s=Sum('quantidade'))['s'] or 0
+        )
+        estoque_real = produto.quantidade
+        disponivel = max(estoque_real - reservado, 0)
+
         ws.cell(row=row_idx, column=1, value=produto.codigo_barras)
         ws.cell(row=row_idx, column=2, value=produto.lote)
         ws.cell(row=row_idx, column=3, value=produto.descricao)
         ws.cell(row=row_idx, column=4, value=getattr(produto.fornecedor, 'nome', ''))
         ws.cell(row=row_idx, column=5, value=produto.area.nome if produto.area else "")
         ws.cell(row=row_idx, column=6, value=produto.validade.strftime('%d/%m/%Y') if produto.validade else "")
-        ws.cell(row=row_idx, column=7, value=produto.quantidade)
-        ws.cell(row=row_idx, column=8, value=info)
-        ws.cell(row=row_idx, column=9, value="")
-        ws.cell(row=row_idx, column=10, value="")
+        ws.cell(row=row_idx, column=7, value=estoque_real)
+        ws.cell(row=row_idx, column=8, value=estoque_real)
+        ws.cell(row=row_idx, column=9, value=reservado)
+        ws.cell(row=row_idx, column=10, value=disponivel)
         ws.cell(row=row_idx, column=11, value=float(produto.preco_unitario))
 
     for col in ws.columns:
@@ -408,30 +514,33 @@ def deletar_produto(request, produto_id):
     messages.success(request, "Produto excluído com sucesso.")
     return redirect('lista_produtos')
 
+
 @login_required
 def cadastro_produtos(request):
     """
-    Recebe POST de confirmar_importacao e cadastra produtos em massa;
-    também trata fallback individual. Ao final, sempre redireciona para lista.
+    Recebe POST de core/confirmar_importacao.html e cadastra produtos em massa.
+    Também trata fallback individual.
+    Ao final, redireciona para lista de produtos.
     """
     areas = Area.objects.all()
     fornecedores = Fornecedor.objects.all()
 
     if request.method == "POST":
         try:
-            # --- Importação em massa via NFe ---
-            codigos        = request.POST.getlist("codigo_barras")
-            descricoes     = request.POST.getlist("descricao")
-            nomes_forneced = request.POST.getlist("fornecedor_nome")
-            area_ids       = request.POST.getlist("area_id")
-            lotes          = request.POST.getlist("lote")
-            validades      = request.POST.getlist("validade")
-            quantidades    = request.POST.getlist("quantidade")
-            precos         = request.POST.getlist("preco_unitario")
-            statuses       = request.POST.getlist("status")
-            nfe_nums       = request.POST.getlist("nfe_numero")
+            # --- 1) Importação em massa via NFe ---
+            codigos       = request.POST.getlist("codigo_barras")
+            descricoes    = request.POST.getlist("descricao")
+            nomes_forn    = request.POST.getlist("fornecedor_nome")
+            area_ids      = request.POST.getlist("area_id")
+            lotes         = request.POST.getlist("lote")
+            validades     = request.POST.getlist("validade")
+            quantidades   = request.POST.getlist("quantidade")
+            precos        = request.POST.getlist("preco_unitario")
+            statuses      = request.POST.getlist("status")
+            # Listagem de NFe (a cada linha terá o mesmo número, mas pegamos via getlist)
+            nfe_nums      = request.POST.getlist("nfe_numero")
 
-            # se houver ao menos um código, trata importação em massa
+            # Se houver ao menos um código (importação em massa)
             if any(codigos):
                 created = 0
                 for (
@@ -439,7 +548,7 @@ def cadastro_produtos(request):
                 ) in zip_longest(
                     codigos,
                     descricoes,
-                    nomes_forneced,
+                    nomes_forn,
                     area_ids,
                     lotes,
                     validades,
@@ -449,37 +558,59 @@ def cadastro_produtos(request):
                     nfe_nums,
                     fillvalue=""
                 ):
-                    # parse de campos
-                    validade = parse_date(val) if val else None
-                    quantidade     = int(qt)  if qt.strip() else 0
-                    preco_unitario = float(pr) if pr.strip() else 0.0
-                    status_final   = st or "ativo"
+                    # --- 1.1) Parse dos campos ---
+                    # Validade → date
+                    validade_date = None
+                    if val:
+                        try:
+                            validade_date = datetime.strptime(val, "%Y-%m-%d").date()
+                        except:
+                            try:
+                                validade_date = datetime.strptime(val, "%d/%m/%Y").date()
+                            except:
+                                validade_date = None
 
-                    # cria ou recupera fornecedor
+                    # Quantidade → int
+                    try:
+                        quantidade = int(qt)
+                    except:
+                        quantidade = 0
+
+                    # Preço Unitário → float (substitui vírgula por ponto)
+                    preco_unitario = 0.0
+                    if pr:
+                        preco_unitario = float(pr.replace(',', '.'))
+
+                    # Status (ou “ativo” se vazio)
+                    status_final = st or "ativo"
+
+                    # --- 1.2) Cria ou recupera Fornecedor ---
                     if fn:
                         fornecedor, _ = Fornecedor.objects.get_or_create(nome=fn)
                     else:
                         fornecedor = None
 
-                    Produto.objects.create(
-                        nfe_numero      = nfe,
+                    # --- 1.3) Cria Produto (lote automático no save()) ---
+                    produto = Produto(
+                        nfe_numero      = nfe,       # sempre o mesmo número
                         codigo_barras   = cb,
                         descricao       = desc,
                         fornecedor      = fornecedor,
                         area_id         = aid or None,
-                        lote            = lote,
-                        validade        = validade,
+                        lote            = None,      # None → save() calcula
+                        validade        = validade_date,
                         quantidade      = quantidade,
                         preco_unitario  = preco_unitario,
                         status          = status_final,
                         criado_por      = request.user,
                     )
+                    produto.save()
                     created += 1
 
                 messages.success(request, f"{created} produto(s) importado(s) com sucesso!")
                 return redirect("lista_produtos")
 
-            # --- Fallback individual ---
+            # --- 2) Fallback de cadastro individual via formulário HTML ---
             codigo_barras = request.POST.get("codigo_barras")
             if codigo_barras:
                 descricao      = request.POST.get("descricao", "")
@@ -488,10 +619,10 @@ def cadastro_produtos(request):
                 lote           = request.POST.get("lote", "")
                 validade_str   = request.POST.get("validade")
                 quantidade     = int(request.POST.get("quantidade", 0))
-                preco_unitario = float(request.POST.get("preco_unitario", 0))
+                preco_unitario = float(request.POST.get("preco_unitario", "0").replace(',', '.'))
                 status_final   = request.POST.get("status") or "ativo"
 
-                validade = parse_date(validade_str) if validade_str else None
+                validade_date = parse_date(validade_str) if validade_str else None
 
                 if not fornecedor_id or not area_id:
                     messages.error(request, "Fornecedor e área são obrigatórios.")
@@ -502,7 +633,7 @@ def cadastro_produtos(request):
                         fornecedor_id   = fornecedor_id,
                         area_id         = area_id,
                         lote            = lote,
-                        validade        = validade,
+                        validade        = validade_date,
                         quantidade      = quantidade,
                         preco_unitario  = preco_unitario,
                         status          = status_final,
@@ -515,35 +646,10 @@ def cadastro_produtos(request):
             messages.error(request, "Erro ao cadastrar produto. Verifique os dados.")
             return redirect("cadastro_produtos")
 
-    # GET: exibe formulário de cadastro/importação
+    # GET: exibe o formulário de cadastro/importação
     return render(request, "core/cadastro_produtos.html", {
         "areas":        areas,
         "fornecedores": fornecedores,
-    })
-    
-@login_required
-def novo_produto_individual(request):
-    """
-    Usa o mesmo layout de edição para criação:
-    template: core/produto_form.html
-    """
-    if request.method == 'POST':
-        form = ProdutoForm(request.POST)
-        if form.is_valid():
-            prod = form.save(commit=False)
-            prod.criado_por = request.user
-            prod.save()
-            messages.success(request, "Produto criado com sucesso!")
-            return redirect('lista_produtos')
-    else:
-        form = ProdutoForm()
-
-    return render(request, 'core/produto_form.html', {
-        'form': form,
-        'titulo': 'Novo Produto',
-        'produto': None,
-        'areas': Area.objects.all(),
-        'fornecedores': Fornecedor.objects.all(),
     })
 
 
@@ -560,10 +666,8 @@ def novo_produto_individual(request):
     else:
         form = ProdutoForm()
 
-    # cria a URL base sem código para o fetch
-    # ex: "/api/produto/cosmos/"
     api_template = reverse('buscar_nome_produto', kwargs={'codigo': 'DUMMY'})
-    api_base     = api_template.replace('DUMMY', '')
+    api_base     = api_template.replace('DUMMY/', '')
 
     return render(request, 'core/produto_form.html', {
         'form': form,
@@ -598,7 +702,8 @@ def editar_produto(request, id):
         'fornecedores': Fornecedor.objects.all(),
         'api_base': api_base,
     })
-    
+
+
 def buscar_nome_produto_por_codigo(codigo_barras):
     """
     Lê a COSMOS_API_KEY do settings e busca /gtins/{codigo}.json.
@@ -619,13 +724,10 @@ def buscar_nome_produto_por_codigo(codigo_barras):
     except Exception:
         return "Erro na consulta"
 
+
 @login_required
 @require_GET
 def buscar_nome_produto_view(request, codigo):
-    """
-    View REST para /api/produto/cosmos/<codigo>/
-    Retorna JSON: { "codigo": "...", "nome_produto": "..." }
-    """
     nome = buscar_nome_produto_por_codigo(codigo)
     return JsonResponse({
         "codigo": codigo,

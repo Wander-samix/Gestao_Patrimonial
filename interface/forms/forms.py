@@ -185,7 +185,6 @@ class UsuarioForm(forms.ModelForm):
 class ProdutoForm(forms.ModelForm):
     class Meta:
         model = Produto
-        # inclui todos os campos, menos os gerados automaticamente
         fields = "__all__"
         exclude = [
             'quantidade_inicial',
@@ -195,18 +194,21 @@ class ProdutoForm(forms.ModelForm):
         widgets = {
             'nfe_numero': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Número da NFe'
+                'placeholder': 'Número da NFe',
+                'id': 'id_nfe_numero'
             }),
             'codigo_barras': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Escaneie ou digite o código'
+                'placeholder': 'Escaneie ou digite o código',
+                'id': 'id_codigo_barras'
             }),
             'descricao': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Descrição do produto'
+                'placeholder': 'Descrição do produto',
+                'id': 'id_descricao'
             }),
-            'fornecedor': forms.Select(attrs={'class': 'form-select'}),
-            'area': forms.Select(attrs={'class': 'form-select'}),
+            'fornecedor': forms.Select(attrs={'class': 'form-select', 'id': 'id_fornecedor'}),
+            'area': forms.Select(attrs={'class': 'form-select', 'id': 'id_area'}),
             'lote': forms.TextInput(attrs={
                 'class': 'form-control',
                 'readonly': 'readonly',
@@ -214,17 +216,20 @@ class ProdutoForm(forms.ModelForm):
             }),
             'validade': forms.DateInput(attrs={
                 'class': 'form-control',
-                'type': 'date'
+                'type': 'date',
+                'id': 'id_validade'
             }),
             'quantidade': forms.NumberInput(attrs={
                 'class': 'form-control',
-                'min': 0
+                'min': 0,
+                'id': 'id_quantidade'
             }),
             'preco_unitario': forms.NumberInput(attrs={
                 'class': 'form-control',
-                'step': '0.01'
+                'step': '0.01',
+                'id': 'id_preco_unitario'
             }),
-            'status': forms.Select(attrs={'class': 'form-select'}),
+            'status': forms.Select(attrs={'class': 'form-select', 'id': 'id_status'}),
         }
         labels = {
             'nfe_numero': 'NFe Nº',
@@ -238,3 +243,5 @@ class ProdutoForm(forms.ModelForm):
             'preco_unitario': 'Preço Unitário',
             'status': 'Status',
         }
+        
+       

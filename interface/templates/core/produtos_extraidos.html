@@ -4,9 +4,17 @@
 <div class="container mt-5">
     <h3 class="mb-4">Produtos extraídos da Nota Fiscal</h3>
     {% if produtos %}
-    <form method="post" action="{% url 'upload_nfe' %}">
+    <form method="post" action="{% url 'confirmar_nfe' %}">
         {% csrf_token %}
-        <input type="hidden" name="nfe_numero" value="{{ nfe_numero }}">
+
+        {# Campos ocultos com dados gerais da NFe #}
+        <input type="hidden" name="nfe_numero"      value="{{ nfe_numero }}">
+        <input type="hidden" name="data_emissao"    value="{{ data_emissao }}">
+        <input type="hidden" name="cnpj_fornecedor" value="{{ cnpj_fornecedor }}">
+        <input type="hidden" name="peso"            value="{{ peso }}">
+        <input type="hidden" name="valor_total"     value="{{ valor_total }}">
+        <input type="hidden" name="area_id"         value="{{ area_id }}">
+
         <table class="table table-bordered table-striped">
             <thead>
                 <tr>
@@ -25,44 +33,50 @@
                 {% for produto in produtos %}
                 <tr>
                     <td>
-                        <input type="hidden" name="codigo_barras" value="{{ produto.codigo_barras }}">
+                        <input type="hidden" name="codigo_barras[]" value="{{ produto.codigo_barras }}">
                         {{ produto.codigo_barras }}
                     </td>
                     <td>
-                        <input type="hidden" name="descricao" value="{{ produto.descricao }}">
+                        <input type="hidden" name="descricao[]" value="{{ produto.descricao }}">
                         {{ produto.descricao }}
                     </td>
                     <td>
-                        <select name="fornecedor" required class="form-select">
+                        <select name="fornecedor_nome[]" required class="form-select">
                             <option value="">-- selecione --</option>
                             {% for f in fornecedores %}
-                            <option value="{{ f.id }}" {% if f.id|stringformat:"s" == produto.fornecedor_id|stringformat:"s" %}selected{% endif %}>{{ f.nome }}</option>
+                                <option value="{{ f.nome }}"
+                                    {% if f.nome == produto.fornecedor_nome %}selected{% endif %}>
+                                    {{ f.nome }}
+                                </option>
                             {% endfor %}
                         </select>
                     </td>
                     <td>
-                        <select name="area" class="form-select">
+                        <select name="area_id[]" class="form-select">
                             <option value="">-- selecione --</option>
                             {% for a in areas %}
-                            <option value="{{ a.id }}" {% if a.id|stringformat:"s" == produto.area_id|stringformat:"s" %}selected{% endif %}>{{ a.nome }}</option>
+                                <option value="{{ a.id }}"
+                                    {% if a.id|stringformat:"s" == produto.area_id|stringformat:"s" %}selected{% endif %}>
+                                    {{ a.nome }}
+                                </option>
                             {% endfor %}
                         </select>
                     </td>
                     <td>
-                        <input type="text" name="lote" value="{{ produto.lote }}" class="form-control">
+                        <input type="text" name="lote[]" value="{{ produto.lote }}" class="form-control">
                     </td>
                     <td>
-                        <input type="date" name="validade" value="{{ produto.validade }}" class="form-control" required>
+                        <input type="date" name="validade[]" value="{{ produto.validade }}" class="form-control" required>
                     </td>
                     <td>
-                        <input type="number" name="quantidade" value="{{ produto.quantidade }}" class="form-control">
+                        <input type="number" name="quantidade[]" value="{{ produto.quantidade }}" class="form-control">
                     </td>
                     <td>
-                        <input type="number" step="0.01" name="preco_unitario" value="{{ produto.preco_unitario }}" class="form-control">
+                        <input type="number" step="0.01" name="preco_unitario[]" value="{{ produto.preco_unitario }}" class="form-control">
                     </td>
                     <td>
-                        <select name="status" class="form-select">
-                            <option value="ativo" {% if produto.status == 'ativo' %}selected{% endif %}>ativo</option>
+                        <select name="status[]" class="form-select">
+                            <option value="ativo"   {% if produto.status == 'ativo'   %}selected{% endif %}>ativo</option>
                             <option value="inativo" {% if produto.status == 'inativo' %}selected{% endif %}>inativo</option>
                         </select>
                     </td>

@@ -1,3 +1,4 @@
+{# interface/templates/core/upload_nfe.html #}
 {% extends 'core/base.html' %}
 {% block title %}Importar Nota Fiscal{% endblock %}
 {% block content %}
@@ -7,7 +8,9 @@
         <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
             <div class="mb-3">
-                <input type="file" name="arquivo" accept=".xml" class="form-control" required>
+                <label for="arquivo" class="form-label">Arquivo XML da NFe</label>
+                <input type="file" name="arquivo" id="arquivo" accept=".xml" 
+                       class="form-control" required>
             </div>
             <button type="submit" class="btn btn-success">Importar</button>
             <a href="{% url 'lista_produtos' %}" class="btn btn-secondary">Cancelar</a>

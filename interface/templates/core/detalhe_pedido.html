@@ -1,3 +1,4 @@
+{# interface/templates/core/detalhe_pedido.html #}
 {% extends 'core/base.html' %}
 
 {% block title %}Detalhe do Pedido {{ pedido.codigo }}{% endblock %}
@@ -17,8 +18,10 @@
 
   <p><strong>Status:</strong> {{ pedido.get_status_display }}</p>
 
+  {# ——— Aqui começa o FORM que faz POST para a própria URL de Detalhes ——— #}
   <form method="post">
     {% csrf_token %}
+
     <table class="table table-bordered">
       <thead>
         <tr>
@@ -34,12 +37,14 @@
             <td>{{ item.quantidade }}</td>
             <td>
               {% if eh_admin_tecnico and pedido.status == 'aprovado' %}
+                {# — Note que o name deve ser exatamente “liberado_” seguido do ID do item. — #}
                 <input type="number"
                        name="liberado_{{ item.id }}"
                        value="{{ item.liberado|default:item.quantidade }}"
                        min="0"
                        max="{{ item.quantidade }}"
-                       class="form-control form-control-sm">
+                       class="form-control form-control-sm"
+                       required>
               {% else %}
                 {{ item.liberado|default:"–" }}
               {% endif %}
@@ -50,13 +55,13 @@
     </table>
 
     {% if eh_admin_tecnico and pedido.status == 'aprovado' %}
+      {# — Este botão precisa ter name="separar" para a view detectá-lo — #}
       <button type="submit" name="separar" class="btn btn-warning">
         Confirmar Liberação
       </button>
     {% endif %}
   </form>
 
-  {# Substituído “in [...]” por comparação explícita para não gerar TemplateSyntaxError #}
   {% if pedido.status == 'separado' or pedido.status == 'entregue' %}
     <div class="mt-4">
       <h5>Resultado da Liberação</h5>
