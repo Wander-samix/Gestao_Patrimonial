@@ -28,7 +28,8 @@ Instalação e Uso
    git clone https://seu.git.repo/sistema-patrimonial.git
    cd sistema-patrimonial
    
-2. Crie o arquivo `.env` com as variáveis necessárias (`SECRET_KEY`, `DATABASE_URL`, etc.).  
+2. Crie o arquivo `.env` com as variáveis necessárias (`SECRET_KEY`, `POSTGRES_DB`,
+   `POSTGRES_USER`, `POSTGRES_PASSWORD`, `DB_HOST`, `DB_PORT`, etc.).
 3. Levante os serviços com Docker Compose:  
    bash
    docker-compose up --build
