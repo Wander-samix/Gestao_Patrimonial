@@ -171,85 +171,54 @@ def novo_pedido(request):
 @login_required
 @transaction.atomic
 def detalhes_pedido(request, pedido_id):
-    """
-    Exibe detalhes do pedido e, se vier POST com name="action" igual a 'separar' ou 'retirar',
-    processa a liberação ou a retirada, respectivamente.
-    """
     pedido = get_object_or_404(Pedido, id=pedido_id)
     eh_admin_tecnico = is_admin_tecnico(request.user)
 
     if request.method == "POST":
         action = request.POST.get("action")
 
-        # 1) Aprovação não acontece aqui (já tratado em lista), apenas separar e retirar
-        if action == 'separar' and eh_admin_tecnico and pedido.status == 'aprovado':
-            erros = []
-            itens_atualizados = 0
-
+        # APROVAR: muda status para aprovado (não separar ainda!)
+        if action == 'aprovar' and eh_admin_tecnico and pedido.status == 'aguardando_aprovacao':
+            # Atualiza liberado dos itens
             for item in pedido.itens.all():
-                campo_name = f'liberado_{item.id}'
-                valor_str = request.POST.get(campo_name)
-
-                # 1.1) Tenta converter para inteiro
-                try:
-                    liberado = int(valor_str)
-                except (TypeError, ValueError):
-                    erros.append(f"Quantidade inválida para '{item.produto.descricao}'.")
-                    continue
-
-                # 1.2) Verifica se não ultrapassa o solicitado
-                if liberado < 0 or liberado > item.quantidade:
-                    erros.append(
-                        f"Para '{item.produto.descricao}', a quantidade liberada deve ficar "
-                        f"entre 0 e {item.quantidade}."
-                    )
-                    continue
-
-                # 1.3) Tudo válido: salva no item
-                item.liberado = liberado
+                valor = request.POST.get(f'liberado_{item.id}')
+                item.liberado = int(valor or 0)
                 item.save()
-                itens_atualizados += 1
+            pedido.status = 'aprovado'
+            pedido.data_aprovacao = now()
+            pedido.aprovado_por = request.user
+            pedido.save()
+            messages.success(request, f"Pedido {pedido.codigo} aprovado.")
+            return redirect('lista_pedidos')
 
-            # 1.4) Se houver erros, exibe mensagens e volta para a própria página de detalhes
-            if erros:
-                for msg_text in erros:
-                    messages.error(request, msg_text)
-                return redirect('detalhe_pedido', pedido_id=pedido.id)
-
-            # 1.5) Se todos os itens foram atualizados sem erro, marcamos o pedido como “separado”
+        # SEPARAR: só se já está aprovado
+        elif action == 'separar' and eh_admin_tecnico and pedido.status == 'aprovado':
+            for item in pedido.itens.all():
+                valor = request.POST.get(f'liberado_{item.id}')
+                item.liberado = int(valor or 0)
+                item.save()
             pedido.status = 'separado'
             pedido.data_separacao = now()
             pedido.save()
-            messages.success(request, f"{itens_atualizados} item(ns) liberado(s) com sucesso!")
-
-            # Após “separar”, podemos redirecionar de volta à lista de pedidos ou ficar no detalhe.
-            # Aqui vamos redirecionar à lista:
+            messages.success(request, f"Pedido {pedido.codigo} separado.")
             return redirect('lista_pedidos')
 
-        # 2) “Retirar” → só deve ocorrer se pedido.status == 'separado'
+        # Retirar: (já implementado)
         elif action == 'retirar' and eh_admin_tecnico and pedido.status == 'separado':
             nome_retirado_por = request.POST.get('retirado_por')
-            if not nome_retirado_por:
-                messages.error(request, "Informe quem retirou o pedido.")
-                return redirect('detalhe_pedido', pedido_id=pedido.id)
-
-            # Registra a retirada no próprio model Pedido
             pedido.registrar_retirada(nome_retirado_por)
-            messages.success(request, f"Pedido {pedido.codigo} registrado como retirado por {nome_retirado_por}.")
-
-            # Após retirar, redirecionamos para a lista de pedidos
+            messages.success(request, f"Pedido {pedido.codigo} retirado por {nome_retirado_por}.")
             return redirect('lista_pedidos')
 
         else:
-            # Qualquer outro caso: ação não permitida ou estado inválido
             messages.error(request, "Ação não permitida ou estado inválido.")
             return redirect('detalhe_pedido', pedido_id=pedido.id)
 
-    # Se não for POST, apenas renderiza o template normalmente
     return render(request, 'core/detalhe_pedido.html', {
         'pedido': pedido,
         'eh_admin_tecnico': eh_admin_tecnico,
     })
+
 
 
 @login_required
