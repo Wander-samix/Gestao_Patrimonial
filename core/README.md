@@ -29,9 +29,13 @@ Instalação e Uso
    cd sistema-patrimonial
    
 2. Crie o arquivo `.env` com as variáveis necessárias (`SECRET_KEY`, `DATABASE_URL`, etc.).  
-3. Levante os serviços com Docker Compose:  
+3. Levante os serviços com Docker Compose (construindo as imagens se necessario):
    bash
    docker-compose up --build
+
+   Para escalar a aplicacao web em mais de um container utilize:
+   bash
+   docker-compose up --scale web=N
    
 4. Acesse `http://localhost:8000/` e consulte a API em `/api/` ou a documentação em `/swagger/`.
 
