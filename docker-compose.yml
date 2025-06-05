@@ -1,26 +1,56 @@
 version: '3.9'
+
 services:
+  # --------------------------------------------------------------------------
+  # Serviço do banco de dados PostgreSQL
+  # --------------------------------------------------------------------------
   db:
     image: postgres:15
+    restart: always
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-gestao_utf8}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-123}
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"  # mapeia a porta externa para testes locais (opcional em prod)
+
+  # --------------------------------------------------------------------------
+  # Serviço Web (Django + Gunicorn)
+  # --------------------------------------------------------------------------
   web:
-    image: python:3.12-slim
-    working_dir: /app
-    command: bash -c "pip install -r requirements.txt && python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
-    volumes:
-      - .:/app
+    build: .
+    restart: always
     env_file:
       - .env
-    ports:
-      - "8000:8000"
+    volumes:
+      - .:/app                    # monta o código-fonte (útil para dev, mas em prod você pode remover)
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    expose:
+      - "8000"                     # expõe porta 8000 para a rede interna Docker
     depends_on:
       - db
+
+  # --------------------------------------------------------------------------
+  # Serviço Nginx (proxy reverso)
+  # --------------------------------------------------------------------------
+  nginx:
+    image: nginx:latest
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"                 # HTTPS também (após configurar certificados)
+    volumes:
+      - static_volume:/app/staticfiles:ro
+      - media_volume:/app/media:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./letsencrypt:/etc/letsencrypt:ro   # onde Certbot vai colocar os certificados
+    depends_on:
+      - web
+
 volumes:
   postgres_data:
+  static_volume:
+  media_volume:
