@@ -30,6 +30,9 @@ Instalação e Uso
    
 2. Crie o arquivo `.env` com as variáveis necessárias (`SECRET_KEY`, `POSTGRES_DB`,
    `POSTGRES_USER`, `POSTGRES_PASSWORD`, `DB_HOST`, `DB_PORT`, etc.).
+   - Para disponibilizar a aplicação na internet defina `DEBUG=False`,
+     preencha `ALLOWED_HOSTS` com o domínio ou IP de produção e
+     mantenha segredos como `COSMOS_API_KEY` nesse arquivo.
 3. Levante os serviços com Docker Compose:  
    bash
    docker-compose up --build
