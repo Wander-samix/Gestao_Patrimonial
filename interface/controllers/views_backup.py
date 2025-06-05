@@ -9,6 +9,7 @@ from django.core.files.storage import FileSystemStorage
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+from django.conf import settings
 from django.db.models.functions import TruncMonth
 from django.core.mail import send_mail
 from django.core.serializers.json import DjangoJSONEncoder
@@ -401,7 +402,7 @@ def deletar_produto(request, produto_id):
 def buscar_nome_produto_por_codigo(codigo_barras):
     url = f"https://api.cosmos.bluesoft.com.br/gtins/{codigo_barras}.json"
     headers = {
-        "X-Cosmos-Token": "3fTpL-M47SqFLJ8qq1RAPg",  # Substitua por seu token real
+        "X-Cosmos-Token": settings.COSMOS_API_KEY,
         "Content-Type": "application/json",
         "User-Agent": "Cosmos-API-Request"
     }

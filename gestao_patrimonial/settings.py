@@ -172,4 +172,4 @@ AUTH_USER_MODEL = 'core.Usuario'
 # ------------------------------------------------------------------------------
 # Chave da API Cosmos (exemplo; mover para env em produção)
 # ------------------------------------------------------------------------------
-COSMOS_API_KEY = os.environ.get('COSMOS_API_KEY', '3fTpL-M47SqFLJ8qq1RAPg')
+COSMOS_API_KEY = os.environ.get('COSMOS_API_KEY', 'your-cosmos-api-key')
