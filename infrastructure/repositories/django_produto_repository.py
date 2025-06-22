@@ -1,7 +1,11 @@
+from datetime import date, timedelta
 from typing import List, Optional
+from django.db.models import Q
+
 from core.domain.entities.produto import Produto
 from core.domain.repositories.produto_repository import IProdutoRepository
 from core.models import Produto as ProdutoModel
+
 
 class DjangoProdutoRepository(IProdutoRepository):
     def save(self, obj: Produto) -> Produto:
@@ -108,3 +112,53 @@ class DjangoProdutoRepository(IProdutoRepository):
         Remove o Produto com a PK informada.
         """
         ProdutoModel.objects.filter(pk=id).delete()
+
+    def listar_filtrado(
+        self,
+        busca: Optional[str] = None,
+        area_id: Optional[int] = None,
+        status: Optional[str] = None,
+        validade: Optional[str] = None  # None | 'vencido' | 'proximo'
+    ) -> List[Produto]:
+        """
+        Filtra produtos por busca, área, status e validade (vencido/próximo).
+        """
+        qs = ProdutoModel.objects.all()
+        hoje = date.today()
+
+        if busca:
+            qs = qs.filter(
+                Q(descricao__icontains=busca) | Q(codigo_barras__icontains=busca)
+            )
+        if area_id:
+            qs = qs.filter(area_id=area_id)
+        if status:
+            qs = qs.filter(status=status)
+
+        if validade == 'vencido':
+            qs = qs.filter(validade__lt=hoje)
+        elif validade == 'proximo':
+            qs = qs.filter(validade__gte=hoje, validade__lte=hoje + timedelta(days=7))
+
+        # Opcional: ordenação
+        qs = qs.order_by('validade', 'descricao')
+
+        return [
+            Produto(
+                id                  = m.id,
+                nfe_numero          = m.nfe_numero,
+                codigo_barras       = m.codigo_barras,
+                descricao           = m.descricao,
+                fornecedor_id       = m.fornecedor_id,
+                area_id             = m.area_id,
+                lote                = m.lote,
+                validade            = m.validade,
+                quantidade          = m.quantidade,
+                quantidade_inicial  = m.quantidade_inicial,
+                preco_unitario      = m.preco_unitario,
+                status              = m.status,
+                criado_por_id       = m.criado_por_id,
+                criado_em           = m.criado_em
+            )
+            for m in qs
+        ]

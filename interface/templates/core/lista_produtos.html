@@ -28,6 +28,13 @@
         <option value="inativo" {% if filtro_status == 'inativo' %}selected{% endif %}>Inativo</option>
       </select>
     </div>
+    <div class="col-12 col-md-2">
+      <select name="filtro_validade" class="form-select">
+        <option value="">Todas as Validades</option>
+        <option value="vencido" {% if request.GET.filtro_validade == 'vencido' %}selected{% endif %}>Vencido</option>
+        <option value="proximo" {% if request.GET.filtro_validade == 'proximo' %}selected{% endif %}>Próximo de Vencer</option>
+      </select>
+    </div>
     <div class="col-12 col-md-2 mt-2">
       <div class="form-check">
         <input class="form-check-input" type="checkbox"
@@ -44,67 +51,95 @@
     </div>
 
     <div class="row mt-2">
-      <div class="col-12 d-flex justify-content-end gap-2">
-        <a href="{% url 'exportar_produtos_excel' %}?busca={{ busca }}&filtro_area={{ filtro_area }}&filtro_status={{ filtro_status }}&estoque_baixo={{ request.GET.estoque_baixo }}"
-           class="btn btn-outline-success">Exportar Excel</a>
-        {% if user.papel != 'operador' %}
-          <button id="delete-selected" class="btn btn-outline-danger">Excluir Selecionados</button>
-          <a href="{% url 'upload_nfe' %}" class="btn btn-outline-primary">Importar NFe</a>
-          <a href="{% url 'novo_produto_individual' %}" class="btn btn-success">+ Produto</a>
-        {% endif %}
+      <div class="row mt-2">
+        <div class="col-12">
+          <div class="d-flex flex-wrap justify-content-end gap-2">
+            <a href="{% url 'exportar_produtos_excel' %}?busca={{ busca }}&filtro_area={{ filtro_area }}&filtro_status={{ filtro_status }}&estoque_baixo={{ request.GET.estoque_baixo }}&filtro_validade={{ request.GET.filtro_validade }}"
+              class="btn btn-outline-success">Exportar Excel</a>
+            {% if user.papel != 'operador' %}
+              <button id="delete-selected" class="btn btn-outline-danger">Excluir Selecionados</button>
+              <a href="{% url 'upload_nfe' %}" class="btn btn-outline-primary">Importar NFe</a>
+              <a href="{% url 'novo_produto_individual' %}" class="btn btn-success">+ Produto</a>
+            {% endif %}
+          </div>
+        </div>
       </div>
     </div>
   </form>
 
   <script>
-document.addEventListener('DOMContentLoaded', function() {
-  var cb = document.getElementById('checkEstoqueBaixo');
-  if (cb) {
-    cb.addEventListener('change', function() {
-      this.form.submit();
-    });
-  }
-});
-</script>
+  document.addEventListener('DOMContentLoaded', function() {
+    var cb = document.getElementById('checkEstoqueBaixo');
+    if (cb) {
+      cb.addEventListener('change', function() {
+        this.form.submit();
+      });
+    }
+  });
+  </script>
 
   <style>
-    /* Cabeçalho preto e texto branco */
     .table thead th {
       background-color: black;
       color: white;
     }
-  
-    /* Fixa a primeira coluna do cabeçalho */
     .table thead th:first-child {
       position: sticky;
       left: 0;
       z-index: 4;
     }
-    /* Fixa a última coluna do cabeçalho */
     .table thead th:last-child {
       position: sticky;
       right: 0;
       z-index: 4;
     }
-  
-    /* Fixa a primeira coluna do corpo, mas com fundo padrão */
     .table tbody td:first-child {
       position: sticky;
       left: 0;
       background-color: white;
       z-index: 2;
     }
-    /* Fixa a última coluna do corpo, mas com fundo padrão */
     .table tbody td:last-child {
       position: sticky;
       right: 0;
       background-color: white;
       z-index: 2;
     }
+    .table td .btn {
+      white-space: nowrap;
+    }
+    /* scroll horizontal visível quando necessário */
+    .table-responsive {
+      overflow-x: auto;
+      margin: 0 -1.25rem;
+      width: calc(100% + 2.5rem);
+      background-color: #fff;
+    }
+    @media (max-width: 576px) {
+      .table td .btn {
+        padding: 2px 6px;
+        font-size: 0.75rem;
+      }
+      .table td .btn i {
+        font-size: 0.9rem;
+      }
+      .table td {
+        font-size: 0.8rem;
+      }
+      .table thead th,
+      .table tbody td {
+        min-width: 80px;
+      }
+      .table-responsive {
+        overflow-x: auto;
+        margin: 0 -0.5rem;
+        width: calc(100% + 1rem);
+      }
+    }
   </style>
   
   <!-- tabela de produtos -->
-  <div class="table-responsive" style="margin:0 -1.25rem; width:calc(100% + 2.5rem);">
+  <div class="table-responsive">
     <table class="table table-bordered table-hover mb-0 text-center align-middle">
       <thead class="table-dark text-center align-middle" style="font-weight:400; font-size:0.9rem;">
         <tr>
@@ -133,7 +168,13 @@ document.addEventListener('DOMContentLoaded', function() {
       </thead>
       <tbody>
         {% for produto in produtos %}
-          <tr>
+          <tr
+            {% if produto.validade and produto.validade < hoje %}
+              style="background-color: #ffe6e6;"
+            {% elif produto.validade and produto.validade <= hoje|add:"7" %}
+              style="background-color: #fff8e1;"
+            {% endif %}
+          >
             {% if user.papel != 'operador' %}
               <td><input type="checkbox" class="select-row" value="{{ produto.id }}"></td>
             {% endif %}
@@ -146,7 +187,14 @@ document.addEventListener('DOMContentLoaded', function() {
             <td style="min-width:150px;">
               {% if produto.area %}{{ produto.area.nome }}{% else %}&ndash;{% endif %}
             </td>
-            <td>{{ produto.validade|date:"d/m/Y" }}</td>
+            <td>
+              {{ produto.validade|date:"d/m/Y" }}
+              {% if produto.validade < hoje %}
+                <span class="badge bg-danger ms-1">Vencido</span>
+              {% elif produto.validade <= hoje|add:"7" %}
+                <span class="badge bg-warning text-dark ms-1">Vencendo</span>
+              {% endif %}
+            </td>
             <td>{{ produto.quantidade_inicial }}</td>
             <td>{{ produto.estoque_real }}</td>
             <td>{{ produto.estoque_reservado }}</td>

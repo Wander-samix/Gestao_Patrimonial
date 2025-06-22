@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Teste Leitor de Câmera</title>
+  <script src="https://unpkg.com/@zxing/browser@latest"></script>
+</head>
+<body>
+  <h1>Teste de Leitura de Código de Barras</h1>
+  <button onclick="iniciarLeitor()">📷 Escanear</button>
+  <video id="video" style="width:100%;max-height:300px;" autoplay muted></video>
+
+  <script>
+    let codeReader = new ZXing.BrowserBarcodeReader();
+
+    async function iniciarLeitor() {
+      const video = document.getElementById("video");
+
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const cameras = devices.filter(device => device.kind === "videoinput");
+        const cameraId = cameras.find(c => c.label.toLowerCase().includes("back"))?.deviceId || cameras[0]?.deviceId;
+
+        if (!cameraId) {
+          alert("Nenhuma câmera foi encontrada.");
+          return;
+        }
+
+        codeReader.decodeFromVideoDevice(cameraId, video, (result, err) => {
+          if (result) {
+            alert("Código lido: " + result.text);
+            codeReader.reset();
+          }
+        });
+
+      } catch (erro) {
+        console.error(erro);
+        alert("Erro ao ativar a câmera: " + erro.message);
+      }
+    }
+  </script>
+</body>
+</html>

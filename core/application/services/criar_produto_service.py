@@ -1,6 +1,6 @@
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
-from typing import Optional
+from typing import Optional, List
 
 from core.application.contracts.produto_service_contract import IProdutoService
 from core.application.dtos.produto_dto import CreateProdutoDTO, ProdutoDTO
@@ -71,3 +71,40 @@ class ProdutoService(IProdutoService):
             lote=criado.lote,
             criado_em=criado.criado_em.date(),
         )
+
+    def filtrar(
+        self,
+        busca: Optional[str] = None,
+        area_id: Optional[int] = None,
+        status: Optional[str] = None,
+        validade: Optional[str] = None,  # None | 'vencido' | 'proximo'
+    ) -> List[ProdutoDTO]:
+        """
+        Filtro de produtos por critérios (inclusive vencidos/proximidade).
+        validade: None | 'vencido' | 'proximo'
+        """
+        # Agora o filtro de validade já é feito no repo!
+        produtos = self.repo.listar_filtrado(
+            busca=busca,
+            area_id=area_id,
+            status=status,
+            validade=validade
+        )
+
+        # Converta para DTO
+        return [
+            ProdutoDTO(
+                id=p.id,
+                codigo_barras=p.codigo_barras,
+                descricao=p.descricao,
+                fornecedor_id=p.fornecedor_id,
+                quantidade=p.quantidade,
+                preco_unitario=p.preco_unitario,
+                nfe_numero=p.nfe_numero,
+                area_id=p.area_id,
+                validade=p.validade,
+                lote=p.lote,
+                criado_em=p.criado_em.date() if p.criado_em else None,
+            )
+            for p in produtos
+        ]
