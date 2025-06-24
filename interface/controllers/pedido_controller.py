@@ -3,7 +3,7 @@
 from datetime import datetime
 from io import BytesIO
 from itertools import zip_longest
-
+from django.core.paginator import Paginator
 from django.shortcuts                import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib                  import messages
@@ -50,16 +50,28 @@ def lista_pedidos(request):
     status      = request.GET.get("status", "")
     ordenar_por = request.GET.get("ordenar_por", "-data_solicitacao")
     page        = request.GET.get("page")
+    busca_codigo = request.GET.get("busca_codigo", "").strip()
+    busca_usuario = request.GET.get("busca_usuario", "").strip()
+    data_inicial = request.GET.get("data_inicial", "")
+    data_final = request.GET.get("data_final", "")
 
     # Se for admin ou técnico, lista todos; senão apenas do próprio usuário
     qs = Pedido.objects.all() if is_admin_tecnico(request.user) \
          else Pedido.objects.filter(usuario=request.user)
 
+    # Filtros
     if status:
         qs = qs.filter(status=status)
+    if busca_codigo:
+        qs = qs.filter(codigo__icontains=busca_codigo)
+    if busca_usuario:
+        qs = qs.filter(usuario__username__icontains=busca_usuario)
+    if data_inicial:
+        qs = qs.filter(data_solicitacao__date__gte=data_inicial)
+    if data_final:
+        qs = qs.filter(data_solicitacao__date__lte=data_final)
 
     qs = qs.order_by(ordenar_por)
-    from django.core.paginator import Paginator
     pedidos = Paginator(qs, 10).get_page(page)
 
     return render(request, 'core/lista_pedidos.html', {
@@ -67,6 +79,10 @@ def lista_pedidos(request):
         'status_selecionado': status,
         'ordenar_por': ordenar_por.lstrip('-'),
         'ordem': 'desc' if ordenar_por.startswith('-') else 'asc',
+        'busca_codigo': busca_codigo,
+        'busca_usuario': busca_usuario,
+        'data_inicial': data_inicial,
+        'data_final': data_final,
     })
 
 

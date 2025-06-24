@@ -49,19 +49,46 @@
       <button type="submit" class="btn btn-primary">Filtrar</button>
       <a href="{% url 'lista_produtos' %}" class="btn btn-outline-secondary">Limpar</a>
     </div>
+    <!-- Botões de exportação e ações alinhados -->
+    <div class="col-12">
+  
+      <div class="d-flex flex-column flex-md-row justify-content-md-end gap-2 mb-3">
+        <a
+          href="{% url 'exportar_produtos_excel' %}?busca={{ busca }}&filtro_area={{ filtro_area }}&filtro_status={{ filtro_status }}&estoque_baixo={{ request.GET.estoque_baixo }}&filtro_validade={{ request.GET.filtro_validade }}"
+          class="btn btn-outline-success"
+        >
+          Exportar Excel
+        </a>
+        {% if user.papel != 'operador' %}
+          <button
+            id="delete-selected"
+            class="btn btn-outline-danger"
+          >
+            Excluir Selecionados
+          </button>
+          <a
+            href="{% url 'upload_nfe' %}"
+            class="btn btn-outline-primary"
+          >
+            Importar NFe
+          </a>
+          <a
+            href="{% url 'novo_produto_individual' %}"
+            class="btn btn-success"
+          >
+            + Produto
+          </a>
+        {% endif %}
+      </div>
+    </div>
+  </form>
 
-    <div class="row mt-2">
-      <div class="row mt-2">
-        <div class="col-12">
-          <div class="d-flex flex-wrap justify-content-end gap-2">
-            <a href="{% url 'exportar_produtos_excel' %}?busca={{ busca }}&filtro_area={{ filtro_area }}&filtro_status={{ filtro_status }}&estoque_baixo={{ request.GET.estoque_baixo }}&filtro_validade={{ request.GET.filtro_validade }}"
-              class="btn btn-outline-success">Exportar Excel</a>
-            {% if user.papel != 'operador' %}
-              <button id="delete-selected" class="btn btn-outline-danger">Excluir Selecionados</button>
-              <a href="{% url 'upload_nfe' %}" class="btn btn-outline-primary">Importar NFe</a>
-              <a href="{% url 'novo_produto_individual' %}" class="btn btn-success">+ Produto</a>
-            {% endif %}
-          </div>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', function() {
+    var cb = document.getElementById('checkEstoqueBaixo');
+    var deleteButton = document.getElementById('delete-selected');
+    var checkboxes = document.querySelectorAll('input[type="checkbox"]');
         </div>
       </div>
     </div>
