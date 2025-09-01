@@ -7,7 +7,7 @@
 <div class="container mt-4">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h3>Pedido {{ pedido.codigo }}</h3>
-    {% if user.papel == 'admin' %}
+    {% if is_admin %}
       <a href="{% url 'deletar_pedido' pedido.id %}"
          class="btn btn-outline-danger"
          onclick="return confirm('Excluir pedido {{ pedido.codigo }}?');">
@@ -18,7 +18,6 @@
 
   <p><strong>Status:</strong> {{ pedido.get_status_display }}</p>
 
-  {# ——— Aqui começa o FORM que faz POST para a própria URL de Detalhes ——— #}
   <form method="post">
     {% csrf_token %}
 
@@ -37,7 +36,6 @@
             <td>{{ item.quantidade }}</td>
             <td>
               {% if eh_admin_tecnico and pedido.status == 'aprovado' %}
-                {# — Note que o name deve ser exatamente “liberado_” seguido do ID do item. — #}
                 <input type="number"
                        name="liberado_{{ item.id }}"
                        value="{{ item.liberado|default:item.quantidade }}"
@@ -54,14 +52,35 @@
       </tbody>
     </table>
 
-    {% if eh_admin_tecnico and pedido.status == 'aprovado' %}
-      {# — Este botão precisa ter name="separar" para a view detectá-lo — #}
-      <button type="submit" name="separar" class="btn btn-warning">
-        Confirmar Liberação
-      </button>
-    {% endif %}
+    {# Rodapé com botões de ação #}
+    <div class="d-flex justify-content-between mt-4">
+      <div>
+        {# Botões de Aprovar/Reprovar, apenas para admin e status aguardando_aprovacao #}
+        {% if is_admin and pedido.status == 'aguardando_aprovacao' %}
+          <button type="submit" name="action" value="approve" class="btn btn-success me-2">
+            Aprovar
+          </button>
+          <button type="submit" name="action" value="reject" class="btn btn-danger me-2">
+            Reprovar
+          </button>
+        {% endif %}
+
+        {# Botão de Separar, apenas para admin/técnico e status aprovado #}
+        {% if eh_admin_tecnico and pedido.status == 'aprovado' %}
+          <button type="submit" name="action" value="separar" class="btn btn-warning">
+            Confirmar Liberação
+          </button>
+        {% endif %}
+      </div>
+      <div>
+        <a href="{% url 'lista_pedidos' %}" class="btn btn-outline-secondary">
+          Voltar
+        </a>
+      </div>
+    </div>
   </form>
 
+  {# Resultado da Liberação #}
   {% if pedido.status == 'separado' or pedido.status == 'entregue' %}
     <div class="mt-4">
       <h5>Resultado da Liberação</h5>
@@ -74,6 +93,9 @@
           </li>
         {% endfor %}
       </ul>
+      <a href="{% url 'lista_pedidos' %}" class="btn btn-outline-secondary">
+        Voltar
+      </a>
     </div>
   {% endif %}
 </div>

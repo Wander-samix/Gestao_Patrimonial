@@ -5,6 +5,7 @@ import json
 import xml.etree.ElementTree as ET
 from datetime import date, datetime
 from itertools import zip_longest
+from datetime import date, timedelta
 
 from django.shortcuts            import render, redirect, get_object_or_404
 from django.urls                 import reverse
@@ -86,14 +87,14 @@ def logout_view(request):
 
 @login_required
 def lista_produtos(request):
-    busca         = request.GET.get('busca', '').strip()
-    status        = request.GET.get('filtro_status', '')
-    filtro_area   = request.GET.get('filtro_area', '')
-    ordenar_por   = request.GET.get('ordenar_por', 'id')
-    ordem         = request.GET.get('ordem', 'asc')
-    somente_baixo = request.GET.get('estoque_baixo') == '1'
+    busca           = request.GET.get('busca', '').strip()
+    status          = request.GET.get('filtro_status', '')
+    filtro_area     = request.GET.get('filtro_area', '')
+    filtro_validade = request.GET.get('filtro_validade', '')
+    ordenar_por     = request.GET.get('ordenar_por', 'id')
+    ordem           = request.GET.get('ordem', 'asc')
+    somente_baixo   = request.GET.get('estoque_baixo') == '1'
 
-    # 1) filtros iniciais
     produtos = Produto.objects.all()
     if busca:
         produtos = produtos.filter(
@@ -104,6 +105,15 @@ def lista_produtos(request):
         produtos = produtos.filter(status=status)
     if filtro_area:
         produtos = produtos.filter(area__nome__iexact=filtro_area)
+
+    hoje = now().date()
+
+    # Filtro de validade
+    if filtro_validade == 'vencido':
+        produtos = produtos.filter(validade__lt=hoje)
+    elif filtro_validade == 'proximo':
+        produtos = produtos.filter(validade__gte=hoje, validade__lte=hoje + timedelta(days=7))
+
     if ordenar_por in ['id', 'validade', 'descricao', 'criado_em']:
         exp = f"-{ordenar_por}" if ordem == 'desc' else ordenar_por
         produtos = produtos.order_by(exp)
@@ -115,9 +125,8 @@ def lista_produtos(request):
         if cfg.area_id
     }
     DEFAULT_MINIMO_PCT = 50
-    hoje = now().date()
 
-    # 2) reservas pendentes até hoje
+    # Reservas pendentes até hoje
     pendentes = (
         ItemPedido.objects
             .filter(
@@ -134,7 +143,7 @@ def lista_produtos(request):
         for r in pendentes
     }
 
-    # 3) Calcula totais por grupo (codigo_barras, area_id)
+    # Calcula totais por grupo (codigo_barras, area_id)
     grupos = defaultdict(lambda: {'real': 0, 'reservado': 0})
     for p in produtos:
         key = (p.codigo_barras, p.area_id)
@@ -143,7 +152,7 @@ def lista_produtos(request):
     for key, total in reservas.items():
         grupos[key]['reservado'] += total
 
-    # 4) Processa produtos
+    # Processa produtos e destaca os por validade
     produtos_filtrados = []
     for p in produtos.order_by('validade', 'criado_em'):
         key = (p.codigo_barras, p.area_id)
@@ -169,14 +178,12 @@ def lista_produtos(request):
         threshold = total_real_grupo * (pct_minimo / 100.0)
 
         p.estoque_baixo = disponivel_total_grupo <= threshold
-
-        # AGORA: percentual do disponível em relação ao total real do grupo
         p.percentual_estoque = (disponivel_total_grupo / total_real_grupo) * 100 if total_real_grupo else 0
 
+        # Aqui já filtra caso seja "somente baixo"
         if not somente_baixo or p.estoque_baixo:
             produtos_filtrados.append(p)
 
-    # Conta total de produtos e filtrados para exibir no rodapé se desejar
     total_produtos = produtos.count()
     total_filtrados = len(produtos_filtrados)
 
@@ -185,6 +192,7 @@ def lista_produtos(request):
         'busca': busca,
         'filtro_status': status,
         'filtro_area': filtro_area,
+        'filtro_validade': filtro_validade,
         'ordenar_por': ordenar_por,
         'ordem': ordem,
         'areas': Area.objects.all(),
@@ -192,7 +200,9 @@ def lista_produtos(request):
         'estoque_baixo_aplicado': somente_baixo,
         'total_produtos': total_produtos,
         'total_filtrados': total_filtrados,
+        'hoje': hoje,  # passa o "hoje" para template colorir as linhas
     })
+
 
 
 @login_required

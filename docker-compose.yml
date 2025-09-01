@@ -1,26 +1,46 @@
 version: '3.9'
+
 services:
   db:
     image: postgres:15
+    restart: always
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-gestao_utf8}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-123}
-    ports:
-      - "5432:5432"
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    # Não exponha a porta do banco para fora!
+    # ports:
+    #   - "5432:5432"
+
   web:
-    image: python:3.12-slim
-    working_dir: /app
-    command: bash -c "pip install -r requirements.txt && python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
-    volumes:
-      - .:/app
+    build: .
+    restart: always
     env_file:
       - .env
-    ports:
-      - "8000:8000"
+    volumes:
+      - .:/app
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    expose:
+      - "8000"
     depends_on:
       - db
+
+  nginx:
+    image: nginx:latest
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - static_volume:/app/staticfiles:ro
+      - media_volume:/app/media:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+    depends_on:
+      - web
+
 volumes:
   postgres_data:
+  static_volume:
+  media_volume:

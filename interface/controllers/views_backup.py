@@ -1281,39 +1281,32 @@ def detalhe_pedido(request, pedido_id):
     pedido = get_object_or_404(Pedido, id=pedido_id)
     is_admin = request.user.papel == 'admin'
 
-    # Bloqueia POST para não-admins
+    # Só permite POST para admin
     if request.method == 'POST' and not is_admin:
-        return redirect('lista_pedidos')
+        return redirect('detalhe_pedido', pedido_id=pedido.id)
 
     if request.method == 'POST':
         action = request.POST.get('action')
 
-        # Aprovar pedido → dispara a baixa de estoque em todos os lotes
         if action == 'approve' and pedido.status == 'aguardando_aprovacao':
             pedido.aprovar(request.user)
             messages.success(request, "Pedido aprovado com sucesso! Estoque atualizado.")
 
-        # Reprovar pedido
         elif action == 'reject' and pedido.status == 'aguardando_aprovacao':
             pedido.status = 'rejeitado'
             pedido.save()
             messages.success(request, "Pedido rejeitado.")
 
-        # Separar pedido → só marca a quantidade liberada e muda status
         elif action == 'separar' and pedido.status == 'aprovado':
             for item in pedido.itens.all():
                 raw = request.POST.get(f'liberado_{item.id}')
                 liberado = int(raw) if raw and raw.isdigit() else 0
-
-                # Limita ao saldo que havia no momento do pedido
                 estoque_no_pedido = item.estoque_no_pedido or 0
                 item.liberado = min(liberado, item.quantidade, estoque_no_pedido)
                 item.save()
-
             pedido.marcar_como_separado()
             messages.success(request, "Pedido marcado como separado.")
 
-        # Retirar pedido → dispara apenas o log de saída e muda status para entregue
         elif action == 'retirar' and pedido.status == 'separado':
             quem = request.POST.get('retirado_por') or request.user.username
             pedido.registrar_retirada(quem)
@@ -1322,15 +1315,15 @@ def detalhe_pedido(request, pedido_id):
         else:
             messages.error(request, "Ação não permitida ou estado inválido.")
 
-        return redirect('lista_pedidos')
+        # Volta para a própria tela de detalhes, não para a lista!
+        return redirect('detalhe_pedido', pedido_id=pedido.id)
 
-    # GET: exibe lista de pedidos
-    pedidos = Pedido.objects.select_related('usuario').prefetch_related('itens__produto')
-    return render(request, 'core/lista_pedidos.html', {
-        'pedidos': pedidos,
-        'status_selecionado': request.GET.get('status', ''),
+    # GET: exibe detalhes do pedido!
+    return render(request, 'core/detalhe_pedido.html', {
+        'pedido': pedido,
         'is_admin': is_admin,
-        'STATUS_CHOICES': Pedido.STATUS_CHOICES,
+        # Passe outras variáveis que o template precisar, ex:
+        'eh_admin_tecnico': request.user.papel in ['admin', 'tecnico'],
     })
     
 def detalhes_pedido_view(request, pedido_id):

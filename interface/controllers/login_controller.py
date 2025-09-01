@@ -19,8 +19,14 @@ def login_view(request):
             password=request.POST.get('password')
         )
         if user:
-            login(request, user)
-            return redirect('lista_produtos')
+            # Verifica o boolean 'ativo'
+            if getattr(user, 'ativo', False):
+                login(request, user)
+                return redirect('lista_produtos')
+            else:
+                return render(request, 'core/login.html', {
+                    'error': 'Usuário inativo. Contate o administrador.'
+                })
         return render(request, 'core/login.html', {
             'error': 'Credenciais inválidas'
         })

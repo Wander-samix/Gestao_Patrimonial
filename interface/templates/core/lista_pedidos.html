@@ -4,37 +4,53 @@
 {% block title %}Lista de Pedidos{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h2>Pedidos</h2>
-  <div>
-    <a href="{% url 'novo_pedido' %}" class="btn btn-primary me-2">+ Novo Pedido</a>
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-2">
+  <h2 class="mb-2 mb-md-0">Pedidos</h2>
+  <div class="d-flex flex-column flex-md-row justify-content-md-end gap-2">
+    <a href="{% url 'novo_pedido' %}" class="btn btn-primary">+ Novo Pedido</a>
     <a href="{% url 'exportar_pedidos_excel' %}?status={{ status_selecionado }}" class="btn btn-outline-success">
       Exportar Excel
     </a>
   </div>
 </div>
 
-<form method="get" action="{% url 'lista_pedidos' %}" class="row g-2 mb-3">
-  <div class="col-auto">
+<form method="GET" class="row gy-2 align-items-end mb-3">
+  <div class="col-12 col-md-2">
+    <input type="text" name="busca_codigo" value="{{ busca_codigo }}" class="form-control" placeholder="Código do Pedido">
+  </div>
+  <div class="col-12 col-md-3">
+    <input type="text" name="busca_usuario" value="{{ busca_usuario }}" class="form-control" placeholder="Solicitante">
+  </div>
+  <div class="col-12 col-md-2">
+  <label for="data_inicial" class="form-label">Data Inicial</label>
+  <input type="date" id="data_inicial" name="data_inicial" value="{{ data_inicial }}" class="form-control">
+  </div>
+  <div class="col-12 col-md-2">
+    <label for="data_final" class="form-label">Data Final</label>
+    <input type="date" id="data_final" name="data_final" value="{{ data_final }}" class="form-control">
+  </div>
+  <div class="col-12 col-md-2">
     <select name="status" class="form-select">
       <option value="">Todos os Status</option>
-      {% for chave, label in STATUS_CHOICES %}
-        <option value="{{ chave }}" {% if status_selecionado == chave %}selected{% endif %}>
-          {{ label }}
-        </option>
-      {% endfor %}
+      <option value="aprovado" {% if status == 'aprovado' %}selected{% endif %}>Aprovado</option>
+      <option value="separado" {% if status == 'separado' %}selected{% endif %}>Separado</option>
+      <option value="entregue" {% if status == 'entregue' %}selected{% endif %}>Entregue</option>
+      <!-- ...outros status... -->
     </select>
   </div>
-  <div class="col-auto">
-    <button type="submit" class="btn btn-outline-secondary">Filtrar</button>
-    <a href="{% url 'lista_pedidos' %}" class="btn btn-outline-secondary">Limpar</a>
+  <div class="col-12 col-md-1">
+    <button type="submit" class="btn btn-primary w-100">Filtrar</button>
+  </div>
+  <div class="col-12 col-md-1">
+    <a href="{% url 'lista_pedidos' %}" class="btn btn-outline-secondary w-100">Limpar</a>
   </div>
 </form>
+
 
 <div class="table-responsive">
   <table class="table table-bordered table-hover">
     <thead class="table-dark text-center align-middle"
-           style="font-weight: 400; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 0.9rem; color: white;">
+           style="font-weight: 300; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 0.8rem; color: white;">
       <tr>
         <th style="width:40px; color: white;">#</th>
         <th>

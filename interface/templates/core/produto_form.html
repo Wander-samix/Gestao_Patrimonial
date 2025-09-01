@@ -5,40 +5,90 @@
 
 {% block content %}
 <div class="container mt-5 mb-5">
+  <style>
+    .flash-feedback {
+      animation: flash-bg 0.4s ease-in-out;
+    }
+
+    @keyframes flash-bg {
+      0% { background-color: #c7ffd8; }
+      100% { background-color: transparent; }
+    }
+
+    @media (max-width: 768px) {
+      #video {
+        margin-top: 10px;
+        border: 2px solid #ccc;
+        border-radius: 6px;
+      }
+    }
+  </style>
+
   <h2 class="mb-4">{{ titulo }}</h2>
   <div class="card shadow-sm">
     <div class="card-body">
       <form method="post" novalidate>
         {% csrf_token %}
         {{ form.non_field_errors }}
-
         <div class="row g-3">
+
           <div class="col-md-4">
             {{ form.nfe_numero.label_tag }}
             {{ form.nfe_numero }}
             {{ form.nfe_numero.errors }}
           </div>
+
           <div class="col-md-4">
             {{ form.codigo_barras.label_tag }}
-            {{ form.codigo_barras }}
+            <div class="input-group">
+              {{ form.codigo_barras }}
+              <button type="button"
+                      class="btn btn-outline-secondary"
+                      onclick="iniciarLeitor()"
+                      title="Escanear com a câmera"
+                      id="botaoLeitor">
+                <i class="bi bi-camera-fill"></i>
+              </button>
+            </div>
+
+            <!-- Câmera e botão parar -->
+            <video id="video"
+                   style="width:100%; max-height:250px; display:none;"
+                   autoplay muted class="mt-2"></video>
+
+            <div class="text-center mt-2">
+              <button type="button"
+                id="btnParar"
+                class="btn btn-sm btn-danger"
+                onclick="pararLeitor()"
+                style="display:none">
+              ❌ Parar Leitura
+              </button>
+            </div>
+
+
             {{ form.codigo_barras.errors }}
           </div>
+
           <div class="col-md-4">
             {{ form.descricao.label_tag }}
             {{ form.descricao }}
             {{ form.descricao.errors }}
             <div id="desc-feedback" class="text-danger small"></div>
           </div>
+
           <div class="col-md-4">
             {{ form.fornecedor.label_tag }}
             {{ form.fornecedor }}
             {{ form.fornecedor.errors }}
           </div>
+
           <div class="col-md-4">
             {{ form.area.label_tag }}
             {{ form.area }}
             {{ form.area.errors }}
           </div>
+
           <div class="col-md-4">
             {% if produto %}
               <label class="form-label">Lote</label>
@@ -49,21 +99,25 @@
               {{ form.lote.errors }}
             {% endif %}
           </div>
+
           <div class="col-md-3">
             {{ form.validade.label_tag }}
             {{ form.validade }}
             {{ form.validade.errors }}
           </div>
+
           <div class="col-md-3">
             {{ form.quantidade.label_tag }}
             {{ form.quantidade }}
             {{ form.quantidade.errors }}
           </div>
+
           <div class="col-md-3">
             {{ form.preco_unitario.label_tag }}
             {{ form.preco_unitario }}
             {{ form.preco_unitario.errors }}
           </div>
+
           <div class="col-md-3">
             {{ form.status.label_tag }}
             {{ form.status }}
@@ -84,43 +138,125 @@
   </div>
 </div>
 
+<input type="file"
+       id="fileInput"
+       accept="image/*"
+       capture="environment"
+       style="display:none"
+       onchange="handleFile(event)">
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/@zxing/library@latest"></script>
+
 <script>
+let codeReader;
+let cameraAtiva = false;
+
 document.addEventListener('DOMContentLoaded', () => {
-  const codInput  = document.getElementById('id_codigo_barras');
-  // Suporta input ou textarea para descrição:
-  const descInput = document.getElementById('id_descricao') || document.querySelector('textarea#id_descricao');
-  const loteInput = document.getElementById('id_lote');
-  const descFeedback = document.getElementById('desc-feedback');
-  const API_BASE  = "{{ api_base }}";  // passado pela view
+  const campoCodigo = document.getElementById("id_codigo_barras");
+  const descInput = document.getElementById("id_descricao");
+  const descFeedback = document.getElementById("desc-feedback");
+  const video = document.getElementById("video");
+  const botaoParar = document.getElementById("btnParar");
+  const API_BASE = "{{ api_base }}";
+  const TOKEN = "{{ cosmos_token }}";
 
-  if (!codInput || !descInput) return;
-
-  function buscarNaCosmos(codigo) {
-    if (!codigo) return;
-    descFeedback.innerText = '';
-    fetch(API_BASE + encodeURIComponent(codigo) + '/')
-      .then(r => r.json())
-      .then(data => {
-        if (data.nome_produto && !data.nome_produto.startsWith("Produto não encontrado")) {
-          descInput.value = data.nome_produto;
-          descFeedback.innerText = '';
-        } else {
-          descInput.value = '';
-          descFeedback.innerText = 'Produto não encontrado na base Cosmos.';
-        }
-      })
-      .catch(() => {
-        descFeedback.innerText = 'Erro ao buscar produto na Cosmos.';
-      });
+  if (window.ZXing && !codeReader) {
+    codeReader = new ZXing.BrowserBarcodeReader();
   }
 
-  codInput.addEventListener('blur', () => buscarNaCosmos(codInput.value.trim()));
-  codInput.addEventListener('keydown', e => {
+  function buscarNaCosmos(codigo) {
+    if (!codigo || !descInput) return;
+    descFeedback.innerText = '';
+    fetch(API_BASE + encodeURIComponent(codigo) + '/', {
+      headers: { 'Authorization': 'Token ' + TOKEN }
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.nome_produto) {
+        descInput.value = data.nome_produto;
+      } else {
+        descInput.value = '';
+        descFeedback.innerText = 'Produto não encontrado.';
+      }
+    })
+    .catch(() => {
+      descFeedback.innerText = 'Erro ao buscar na Cosmos.';
+    });
+  }
+
+  campoCodigo?.addEventListener('blur', () => buscarNaCosmos(campoCodigo.value.trim()));
+  campoCodigo?.addEventListener('keydown', e => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      buscarNaCosmos(codInput.value.trim());
+      buscarNaCosmos(campoCodigo.value.trim());
     }
   });
+
+  window.iniciarLeitor = async function () {
+    try {
+      if (cameraAtiva) {
+        pararLeitor();
+        return;
+      }
+
+      await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } } });
+
+      video.style.display = "block";
+      video.scrollIntoView({ behavior: "smooth", block: "start" });
+      botaoParar.style.display = "inline-block";
+      cameraAtiva = true;
+
+      await codeReader.decodeFromConstraints(
+        { video: { facingMode: { ideal: "environment" } } },
+        video,
+        (result, err) => {
+          if (result) {
+            campoCodigo.value = result.text;
+            piscarCampo();
+            pararLeitor();
+            campoCodigo.dispatchEvent(new Event("blur"));
+          }
+        }
+      );
+
+    } catch (e) {
+      console.warn("Erro na câmera. Usando fallback.", e);
+      document.getElementById("fileInput").click();
+    }
+  }
+
+  window.pararLeitor = function () {
+    if (codeReader) codeReader.reset();
+    video.style.display = "none";
+    botaoParar.style.display = "none";
+    cameraAtiva = false;
+  }
+
+  window.handleFile = function (event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const img = new Image();
+    img.src = URL.createObjectURL(file);
+    img.onload = async () => {
+      try {
+        const result = await codeReader.decodeFromImageElement(img);
+        campoCodigo.value = result.text;
+        piscarCampo();
+        campoCodigo.dispatchEvent(new Event("blur"));
+      } catch (err) {
+        console.error("Erro na leitura da imagem:", err);
+        alert("Não foi possível ler o código da imagem.");
+      }
+    };
+  }
+
+  function piscarCampo() {
+    campoCodigo.classList.add("flash-feedback");
+    setTimeout(() => campoCodigo.classList.remove("flash-feedback"), 400);
+  }
 });
 </script>
 {% endblock %}
